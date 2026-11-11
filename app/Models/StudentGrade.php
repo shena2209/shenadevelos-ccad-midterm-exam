@@ -10,8 +10,6 @@ class StudentGrade extends Model
     protected $fillable = [
         'student_id',
         'subject_id',
-        'teacher_id',
-        'section_id',
         'prelim_grade',
         'midterm_grade',
         'final_grade',
@@ -20,10 +18,10 @@ class StudentGrade extends Model
     ];
 
     protected $casts = [
-        'prelim_grade'  => 'decimal:2',
+        'prelim_grade' => 'decimal:2',
         'midterm_grade' => 'decimal:2',
-        'final_grade'   => 'decimal:2',
-        'computed_gpa'  => 'decimal:2',
+        'final_grade' => 'decimal:2',
+        'computed_gpa' => 'decimal:2',
     ];
 
     public function student(): BelongsTo
@@ -34,15 +32,5 @@ class StudentGrade extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
-    }
-
-    public function teacher(): BelongsTo
-    {
-        return $this->belongsTo(Teacher::class);
-    }
-
-    public function section(): BelongsTo
-    {
-        return $this->belongsTo(Section::class);
     }
 }

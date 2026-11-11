@@ -10,8 +10,7 @@ return new class extends Migration
     {
         Schema::create('sections', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->unsignedTinyInteger('grade_level');
+            $table->string('name', 100)->unique();
             $table->timestamps();
         });
     }
@@ -20,4 +19,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('sections');
     }
-};  
+};

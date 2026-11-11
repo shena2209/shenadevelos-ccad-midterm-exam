@@ -1,16 +1,28 @@
 import CreateRecordDialog from '@/components/dashboard/create-record-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { BookOpen, CheckCircle2, Download, GraduationCap, Layers3, Search, UsersRound, XCircle } from 'lucide-react';
+import {
+    ArrowDownToLine,
+    ArrowUpRight,
+    BookOpen,
+    Check,
+    CheckCircle2,
+    GraduationCap,
+    Layers3,
+    Search,
+    UsersRound,
+    X,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
 interface DashboardStats {
     students: number;
@@ -80,20 +92,18 @@ export default function Dashboard({ stats, recentGrades, subjectPerformance, opt
     const filteredGrades = useMemo(() => {
         const query = search.trim().toLowerCase();
 
-        if (!query) {
-            return recentGrades;
-        }
+        if (!query) return recentGrades;
 
         return recentGrades.filter((grade) =>
             [grade.student_name, grade.lrn, grade.subject_name, grade.subject_code, grade.section_name].join(' ').toLowerCase().includes(query),
         );
     }, [recentGrades, search]);
 
-    const cards = [
-        { label: 'Total students', value: stats.students, icon: UsersRound, color: 'bg-sky-50 text-sky-700' },
-        { label: 'Teachers', value: stats.teachers, icon: GraduationCap, color: 'bg-violet-50 text-violet-700' },
-        { label: 'Subjects', value: stats.subjects, icon: BookOpen, color: 'bg-amber-50 text-amber-700' },
-        { label: 'Sections', value: stats.sections, icon: Layers3, color: 'bg-emerald-50 text-emerald-700' },
+    const summaryCards = [
+        { label: 'Students enrolled', value: stats.students, detail: 'Learner records', icon: UsersRound, accent: 'bg-sky-50 text-sky-700' },
+        { label: 'Teaching staff', value: stats.teachers, detail: 'Active teachers', icon: GraduationCap, accent: 'bg-violet-50 text-violet-700' },
+        { label: 'Subjects', value: stats.subjects, detail: 'In the curriculum', icon: BookOpen, accent: 'bg-amber-50 text-amber-700' },
+        { label: 'Sections', value: stats.sections, detail: 'Class groups', icon: Layers3, accent: 'bg-emerald-50 text-emerald-700' },
     ];
 
     function exportGrades() {
@@ -122,235 +132,252 @@ export default function Dashboard({ stats, recentGrades, subjectPerformance, opt
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <main className="flex flex-1 flex-col gap-7 bg-slate-50/70 p-4 md:p-8">
-                <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-                    <div>
-                        <p className="mb-2 text-sm font-medium text-emerald-700">School year overview</p>
-                        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Good to see you</h1>
-                        <p className="mt-2 text-sm text-slate-600">Here’s a snapshot of your school’s academic records.</p>
+            <main className="flex flex-1 flex-col gap-6 bg-muted/30 p-4 md:gap-8 md:p-8">
+                <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+                    <div className="space-y-2">
+                        <Badge variant="secondary" className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800 hover:bg-emerald-100">
+                            <span className="mr-2 size-1.5 rounded-full bg-emerald-600" />
+                            School year overview
+                        </Badge>
+                        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Academic dashboard</h1>
+                        <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
+                            A clear view of enrollment, grade outcomes, and the latest classroom activity.
+                        </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 sm:flex">
-                            <span className="size-2 rounded-full bg-emerald-500" />
-                            Academic records
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" onClick={exportGrades} disabled={filteredGrades.length === 0}>
+                            <ArrowDownToLine />
+                            Export records
+                        </Button>
                         <CreateRecordDialog
                             options={options}
                             onCreated={(type) => setSuccessMessage(`${recordLabels[type]} created successfully.`)}
                         />
-                        <button
-                            type="button"
-                            onClick={exportGrades}
-                            disabled={filteredGrades.length === 0}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <Download className="size-4" />
-                            Export records
-                        </button>
                     </div>
-                </section>
+                </header>
 
                 {successMessage && (
-                    <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-                        {successMessage}
-                    </p>
+                    <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
+                        <CheckCircle2 className="size-4 text-emerald-700" />
+                        <AlertTitle>Saved successfully</AlertTitle>
+                        <AlertDescription>{successMessage}</AlertDescription>
+                    </Alert>
                 )}
 
                 <section aria-label="School statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {cards.map(({ label, value, icon: Icon, color }) => (
-                        <article key={label} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/40">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-slate-600">{label}</p>
-                                    <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{numberFormatter.format(value)}</p>
+                    {summaryCards.map(({ label, value, detail, icon: Icon, accent }) => (
+                        <Card key={label} className="overflow-hidden border-border/70 shadow-sm">
+                            <CardContent className="flex items-start justify-between p-5">
+                                <div className="space-y-3">
+                                    <p className="text-sm font-medium text-muted-foreground">{label}</p>
+                                    <div>
+                                        <p className="text-3xl font-semibold tracking-tight tabular-nums">{numberFormatter.format(value)}</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                                    </div>
                                 </div>
-                                <span className={`flex size-11 items-center justify-center rounded-xl ${color}`}>
-                                    <Icon className="size-5" />
+                                <span className={`flex size-11 items-center justify-center rounded-xl ${accent}`}>
+                                    <Icon className="size-5" aria-hidden="true" />
                                 </span>
-                            </div>
-                        </article>
+                            </CardContent>
+                        </Card>
                     ))}
                 </section>
 
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)]">
-                    <article id="performance" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/40 md:p-6">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h2 className="text-base font-semibold text-slate-900">Subject performance</h2>
-                                <p className="mt-1 text-sm text-slate-600">Average grade across recorded assessments</p>
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
+                    <Card id="performance" className="shadow-sm">
+                        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+                            <div className="space-y-1">
+                                <CardTitle className="text-lg">Subject performance</CardTitle>
+                                <CardDescription>Average grade across recorded assessments</CardDescription>
                             </div>
-                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Top 5 subjects</span>
-                        </div>
-                        {subjectPerformance.length > 0 ? (
-                            <div className="mt-7 space-y-5">
-                                {subjectPerformance.map((subject) => {
-                                    const score = Number(subject.average_grade ?? 0);
+                            <Badge variant="outline" className="shrink-0 rounded-full font-normal">
+                                Top 5 subjects
+                            </Badge>
+                        </CardHeader>
+                        <CardContent>
+                            {subjectPerformance.length > 0 ? (
+                                <div className="space-y-5">
+                                    {subjectPerformance.map((subject) => {
+                                        const score = Number(subject.average_grade ?? 0);
+                                        const width = Math.min(100, Math.max(0, score));
 
-                                    return (
-                                        <div key={subject.code}>
-                                            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                                                <div className="min-w-0">
-                                                    <span className="font-medium text-slate-800">{subject.name}</span>
-                                                    <span className="ml-2 text-xs font-medium text-slate-600">{subject.code}</span>
+                                        return (
+                                            <div key={subject.code} className="space-y-2">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-medium">{subject.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{subject.code}</p>
+                                                    </div>
+                                                    <p className="shrink-0 text-sm font-semibold tabular-nums">{formatGrade(subject.average_grade)}</p>
                                                 </div>
-                                                <span className="shrink-0 font-semibold text-slate-700 tabular-nums">
-                                                    {formatGrade(subject.average_grade)}
-                                                </span>
-                                            </div>
-                                            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                                                 <div
-                                                    className="h-full rounded-full bg-emerald-500 transition-all"
-                                                    style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
-                                                />
+                                                    className="h-2 overflow-hidden rounded-full bg-muted"
+                                                    role="progressbar"
+                                                    aria-label={`${subject.name} average`}
+                                                    aria-valuemin={0}
+                                                    aria-valuemax={100}
+                                                    aria-valuenow={width}
+                                                >
+                                                    <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${width}%` }} />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {numberFormatter.format(subject.grade_count)} {subject.grade_count === 1 ? 'grade record' : 'grade records'}
+                                                </p>
                                             </div>
-                                            <p className="mt-1.5 text-xs text-slate-600">
-                                                {numberFormatter.format(subject.grade_count)}{' '}
-                                                {subject.grade_count === 1 ? 'grade record' : 'grade records'}
-                                            </p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="mt-7 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-5 py-9 text-center">
-                                <BookOpen className="mx-auto size-6 text-slate-600" />
-                                <p className="mt-3 text-sm font-medium text-slate-800">No subject grades yet</p>
-                                <p className="mt-1 text-sm text-slate-600">Performance will appear here when grades are recorded.</p>
-                            </div>
-                        )}
-                    </article>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed p-8 text-center">
+                                    <BookOpen className="mx-auto size-8 text-muted-foreground/60" />
+                                    <p className="mt-3 text-sm font-medium">No subject data yet</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">Subject averages will appear here after grades are recorded.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                    <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/40 md:p-6">
-                        <div>
-                            <h2 className="text-base font-semibold text-slate-900">Grade summary</h2>
-                            <p className="mt-1 text-sm text-slate-600">Overall results for recorded grades</p>
-                        </div>
-                        <div className="mt-6 rounded-xl bg-emerald-50/80 p-5">
-                            <p className="text-sm font-medium text-emerald-800">Passing rate</p>
-                            <div className="mt-2 flex items-end justify-between gap-3">
-                                <p className="text-4xl font-semibold tracking-tight text-emerald-950">{stats.passRate}%</p>
-                                <CheckCircle2 className="mb-1 size-6 text-emerald-600" />
-                            </div>
-                            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/80">
-                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${stats.passRate}%` }} />
-                            </div>
-                        </div>
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-                            <div className="rounded-xl border border-slate-100 p-4">
-                                <div className="flex items-center gap-2 text-sm text-slate-700">
-                                    <CheckCircle2 className="size-4 text-emerald-600" />
-                                    Passed
+                    <Card className="shadow-sm">
+                        <CardHeader className="space-y-1">
+                            <CardTitle className="text-lg">Grade summary</CardTitle>
+                            <CardDescription>Outcome of completed assessments</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="rounded-xl bg-emerald-50 p-5">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-emerald-900">Passing rate</p>
+                                        <p className="mt-2 text-4xl font-semibold tracking-tight text-emerald-950 tabular-nums">{stats.passRate}%</p>
+                                    </div>
+                                    <CheckCircle2 className="size-6 text-emerald-700" aria-hidden="true" />
                                 </div>
-                                <p className="mt-2 text-2xl font-semibold text-slate-900">{numberFormatter.format(stats.passed)}</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 p-4">
-                                <div className="flex items-center gap-2 text-sm text-slate-700">
-                                    <XCircle className="size-4 text-rose-500" />
-                                    Failed
+                                <div
+                                    className="mt-4 h-2 overflow-hidden rounded-full bg-white/80"
+                                    role="progressbar"
+                                    aria-label="Passing rate"
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-valuenow={stats.passRate}
+                                >
+                                    <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${stats.passRate}%` }} />
                                 </div>
-                                <p className="mt-2 text-2xl font-semibold text-slate-900">{numberFormatter.format(stats.failed)}</p>
                             </div>
-                            <div className="rounded-xl border border-slate-100 p-4">
-                                <div className="text-sm font-medium text-slate-700">Pending</div>
-                                <p className="mt-2 text-2xl font-semibold text-slate-900">{numberFormatter.format(stats.pending)}</p>
+                            <div className="mt-5 grid grid-cols-3 gap-3">
+                                <div className="rounded-lg border p-3">
+                                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <Check className="size-3.5 text-emerald-600" />
+                                        Passed
+                                    </p>
+                                    <p className="mt-2 text-xl font-semibold tabular-nums">{numberFormatter.format(stats.passed)}</p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <X className="size-3.5 text-rose-600" />
+                                        Failed
+                                    </p>
+                                    <p className="mt-2 text-xl font-semibold tabular-nums">{numberFormatter.format(stats.failed)}</p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs text-muted-foreground">Pending</p>
+                                    <p className="mt-2 text-xl font-semibold tabular-nums">{numberFormatter.format(stats.pending)}</p>
+                                </div>
                             </div>
-                        </div>
-                        <p className="mt-4 text-xs leading-5 text-slate-600">
-                            Passing rate uses {numberFormatter.format(stats.passed + stats.failed)} completed results; pending grades are excluded.
-                        </p>
-                    </article>
+                            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+                                Based on {numberFormatter.format(stats.passed + stats.failed)} completed results; pending grades are excluded.
+                            </p>
+                        </CardContent>
+                    </Card>
                 </section>
 
-                <section id="recent-grades" className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
-                    <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-                        <div>
-                            <h2 className="text-base font-semibold text-slate-900">Recent grade records</h2>
-                            <p className="mt-1 text-sm text-slate-600">The latest updates across your classes</p>
+                <Card id="recent-grades" className="overflow-hidden shadow-sm">
+                    <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-1">
+                            <CardTitle className="text-lg">Recent grade records</CardTitle>
+                            <CardDescription>The latest updates across your classes</CardDescription>
                         </div>
-                        <label className="relative block w-full md:max-w-xs">
-                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-600" />
-                            <input
+                        <div className="relative w-full sm:max-w-xs">
+                            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
                                 type="search"
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Search student or subject"
-                                className="h-10 w-full rounded-xl border border-slate-300 bg-white pr-3 pl-9 text-sm text-slate-900 transition outline-none placeholder:text-slate-600 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+                                className="pl-9"
                                 aria-label="Search grade records"
                             />
-                        </label>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[760px] text-left text-sm">
-                            <thead className="bg-slate-50/80 text-xs font-semibold tracking-wide text-slate-700 uppercase">
-                                <tr>
-                                    <th className="px-6 py-3.5">Student</th>
-                                    <th className="px-6 py-3.5">Subject</th>
-                                    <th className="px-6 py-3.5">Section</th>
-                                    <th className="px-6 py-3.5">Average</th>
-                                    <th className="px-6 py-3.5">Result</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredGrades.map((grade) => (
-                                    <tr key={grade.id} className="transition hover:bg-slate-50/70">
-                                        <td className="px-6 py-4">
-                                            <p className="font-medium text-slate-800">{grade.student_name}</p>
-                                            <p className="mt-0.5 text-xs text-slate-600">LRN {grade.lrn}</p>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <p className="font-medium text-slate-700">{grade.subject_name}</p>
-                                            <p className="mt-0.5 text-xs text-slate-600">{grade.subject_code}</p>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600">
-                                            {grade.grade_level} · {grade.section_name}
-                                        </td>
-                                        <td className="px-6 py-4 font-semibold text-slate-800 tabular-nums">{formatGrade(grade.average_grade)}</td>
-                                        <td className="px-6 py-4">
-                                            {grade.pass_fail_status ? (
-                                                <span
-                                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-                                                        grade.pass_fail_status === 'Passed'
-                                                            ? 'bg-emerald-50 text-emerald-800'
-                                                            : 'bg-rose-50 text-rose-800'
-                                                    }`}
-                                                >
-                                                    <span
-                                                        className={`size-1.5 rounded-full ${grade.pass_fail_status === 'Passed' ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                                                    />
-                                                    {grade.pass_fail_status}
-                                                </span>
-                                            ) : (
-                                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                                    Pending
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredGrades.length === 0 && (
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[760px] text-left text-sm">
+                                <thead className="bg-muted/40 text-xs font-medium text-muted-foreground">
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center">
-                                            <p className="text-sm font-medium text-slate-700">
-                                                {recentGrades.length === 0 ? 'No grade records yet' : 'No matching records'}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-600">
-                                                {recentGrades.length === 0
-                                                    ? 'Once grades are entered, the latest records will appear here.'
-                                                    : 'Try a different student name, LRN, or subject.'}
-                                            </p>
-                                        </td>
+                                        <th scope="col" className="px-6 py-3.5">Student</th>
+                                        <th scope="col" className="px-6 py-3.5">Subject</th>
+                                        <th scope="col" className="px-6 py-3.5">Section</th>
+                                        <th scope="col" className="px-6 py-3.5">Average</th>
+                                        <th scope="col" className="px-6 py-3.5">Result</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3.5 text-xs text-slate-600">
-                        <span>
-                            Showing {numberFormatter.format(filteredGrades.length)} of {numberFormatter.format(recentGrades.length)} recent records
-                        </span>
-                        <span>Sorted by most recently updated</span>
-                    </div>
-                </section>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {filteredGrades.map((grade) => (
+                                        <tr key={grade.id} className="transition-colors hover:bg-muted/30">
+                                            <td className="px-6 py-4">
+                                                <p className="font-medium">{grade.student_name}</p>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">LRN {grade.lrn}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <p className="font-medium">{grade.subject_name}</p>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">{grade.subject_code}</p>
+                                            </td>
+                                            <td className="px-6 py-4 text-muted-foreground">
+                                                {grade.grade_level} · {grade.section_name}
+                                            </td>
+                                            <td className="px-6 py-4 font-semibold tabular-nums">{formatGrade(grade.average_grade)}</td>
+                                            <td className="px-6 py-4">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={
+                                                        grade.pass_fail_status === 'Passed'
+                                                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                                                            : grade.pass_fail_status === 'Failed'
+                                                              ? 'bg-rose-100 text-rose-800 hover:bg-rose-100'
+                                                              : 'bg-muted text-muted-foreground'
+                                                    }
+                                                >
+                                                    {grade.pass_fail_status ?? 'Pending'}
+                                                </Badge>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filteredGrades.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-12 text-center">
+                                                <p className="text-sm font-medium">
+                                                    {recentGrades.length === 0 ? 'No grade records yet' : 'No matching records'}
+                                                </p>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    {recentGrades.length === 0
+                                                        ? 'Once grades are entered, the latest records will appear here.'
+                                                        : 'Try a different student name, LRN, or subject.'}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Separator />
+                        <div className="flex flex-col gap-1 px-6 py-3.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                            <span>
+                                Showing {numberFormatter.format(filteredGrades.length)} of {numberFormatter.format(recentGrades.length)} recent records
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                                Sorted by most recently updated <ArrowUpRight className="size-3.5" />
+                            </span>
+                        </div>
+                    </CardContent>
+                </Card>
             </main>
         </AppLayout>
     );

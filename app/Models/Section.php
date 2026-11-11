@@ -7,12 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Section extends Model
 {
-    protected $fillable = [
-            'name', 
-            'grade_level'];
+    protected $fillable = ['name'];
 
-    public function grades(): HasMany
+    public function students(): HasMany
     {
-        return $this->hasMany(StudentGrade::class);
+        return $this->hasMany(Student::class);
     }
 }

@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { CheckCircle2, Plus } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
 
 type RecordType = 'students' | 'teachers' | 'subjects' | 'sections' | 'grades';
 
@@ -28,8 +30,9 @@ const recordTypes: { id: RecordType; label: string }[] = [
     { id: 'grades', label: 'Grade' },
 ];
 
-const inputClassName =
-    'h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-black outline-none transition placeholder:text-black focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20';
+const inputClassName = 'h-10';
+const selectClassName =
+    'h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring';
 
 export default function CreateRecordDialog({ options, onCreated }: CreateRecordDialogProps) {
     const [open, setOpen] = useState(false);
@@ -47,6 +50,28 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
         midterm_grade: '',
         final_grade: '',
     });
+    const {
+        data: sectionData,
+        setData: setSectionData,
+        post: postSection,
+        processing: sectionProcessing,
+        errors: sectionErrors,
+        reset: resetSection,
+    } = useForm({ name: '' });
+    const [creatingSection, setCreatingSection] = useState(false);
+    const [pendingSectionName, setPendingSectionName] = useState('');
+
+    useEffect(() => {
+        if (!pendingSectionName) return;
+
+        const section = options.sections.find((section) => section.name === pendingSectionName);
+        if (section) {
+            setData('section_id', String(section.id));
+            setPendingSectionName('');
+            setCreatingSection(false);
+            resetSection();
+        }
+    }, [options.sections, pendingSectionName, resetSection, setData]);
 
     function chooseType(type: RecordType) {
         setRecordType(type);
@@ -66,16 +91,26 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
         });
     }
 
+    function createSection() {
+        if (!sectionData.name.trim()) return;
+
+        postSection(route('dashboard.records.sections.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setPendingSectionName(sectionData.name.trim());
+                onCreated('sections');
+            },
+        });
+    }
+
     function fieldError(field: string) {
-        return <InputError className="font-medium text-black" message={errors[field as keyof typeof errors]} />;
+        return <InputError className="font-medium text-destructive" message={errors[field as keyof typeof errors]} />;
     }
 
     function numberField(field: 'prelim_grade' | 'midterm_grade' | 'final_grade', label: string, min: number, max: number) {
         return (
             <div className="grid gap-1.5">
-                <Label htmlFor={field} className="text-black">
-                    {label}
-                </Label>
+                <Label htmlFor={field}>{label}</Label>
                 <Input
                     id={field}
                     type="number"
@@ -101,26 +136,72 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
     ) {
         return (
             <div className="grid gap-1.5">
-                <Label htmlFor={field} className="text-black">
-                    {label}
-                </Label>
-                <select
-                    id={field}
-                    required={required}
+                <Label htmlFor={field}>{label}</Label>
+                <Select
                     value={data[field]}
-                    onChange={(event) => setData(field, event.target.value)}
-                    className={inputClassName}
+                    onValueChange={(value) => setData(field, value)}
+                    required={required}
+                    disabled={items.length === 0}
                 >
-                    <option className="bg-white text-black" value="">
-                        {emptyLabel}
-                    </option>
-                    {items.map((item) => (
-                        <option className="bg-white text-black" key={item.id} value={item.id}>
-                            {item.label}
-                        </option>
-                    ))}
-                </select>
+                    <SelectTrigger id={field} className={selectClassName} aria-label={label}>
+                        <SelectValue placeholder={items.length === 0 ? 'No options available' : emptyLabel} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {items.map((item) => (
+                            <SelectItem key={item.id} value={String(item.id)}>
+                                {item.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 {fieldError(field)}
+                {field === 'section_id' && items.length === 0 && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                        <p>No sections have been created yet. Create one to assign this student.</p>
+                        {!creatingSection ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 border-amber-300 bg-white"
+                                onClick={() => setCreatingSection(true)}
+                            >
+                                <Plus />
+                                Create section
+                            </Button>
+                        ) : (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="inline-section-name">Section name</Label>
+                                    <Input
+                                        id="inline-section-name"
+                                        required
+                                        maxLength={100}
+                                        value={sectionData.name}
+                                        onChange={(event) => setSectionData('name', event.target.value)}
+                                        className="h-10 bg-background"
+                                        autoFocus
+                                    />
+                                    {sectionErrors.name && <InputError message={sectionErrors.name} />}
+                                </div>
+                                <Button
+                                    type="button"
+                                    disabled={sectionProcessing || !sectionData.name.trim()}
+                                    onClick={createSection}
+                                    className="self-end bg-emerald-700 text-white hover:bg-emerald-800"
+                                >
+                                    {sectionProcessing ? 'Saving…' : 'Save section'}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {field === 'section_id' && data.section_id !== '' && (
+                    <p className="flex items-center gap-1.5 text-xs text-emerald-700" role="status">
+                        <CheckCircle2 className="size-3.5" />
+                        Section selected
+                    </p>
+                )}
             </div>
         );
     }
@@ -135,32 +216,31 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                     chooseType('students');
                     setOpen(true);
                 }}
-                className="h-10 rounded-xl border border-emerald-700 bg-emerald-100 px-4 text-sm font-medium text-black hover:bg-emerald-200"
+                className="bg-emerald-700 text-white hover:bg-emerald-800"
             >
-                Add or create data
+                <Plus />
+                Add record
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-slate-200 bg-white text-black sm:max-w-xl">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle className="text-black">Add school data</DialogTitle>
-                        <DialogDescription className="text-black">Create a student, teacher, subject, section, or grade record.</DialogDescription>
+                        <DialogTitle>Add school data</DialogTitle>
+                        <DialogDescription>Create a student, teacher, subject, section, or grade record.</DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Record type">
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5" role="group" aria-label="Record type">
                         {recordTypes.map((type) => (
-                            <button
+                            <Button
                                 key={type.id}
                                 type="button"
                                 onClick={() => chooseType(type.id)}
-                                className={`rounded-lg px-2 py-2 text-sm font-medium transition ${
-                                    recordType === type.id
-                                        ? 'bg-emerald-100 text-black ring-1 ring-emerald-700'
-                                        : 'bg-slate-100 text-black hover:bg-slate-200'
-                                }`}
+                                variant={recordType === type.id ? 'default' : 'outline'}
+                                size="sm"
+                                className={recordType === type.id ? 'bg-emerald-700 text-white hover:bg-emerald-800' : ''}
                                 aria-pressed={recordType === type.id}
                             >
                                 {type.label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
 
@@ -168,7 +248,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                         {recordType === 'students' && (
                             <>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="student-name" className="text-black">
+                                    <Label htmlFor="student-name">
                                         Full name
                                     </Label>
                                     <Input
@@ -183,7 +263,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {fieldError('name')}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="lrn" className="text-black">
+                                    <Label htmlFor="lrn">
                                         Learner reference number (LRN)
                                     </Label>
                                     <Input
@@ -200,7 +280,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {fieldError('lrn')}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="grade_level" className="text-black">
+                                    <Label htmlFor="grade_level">
                                         Grade level
                                     </Label>
                                     <select
@@ -208,7 +288,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                         required
                                         value={data.grade_level}
                                         onChange={(event) => setData('grade_level', event.target.value)}
-                                        className={inputClassName}
+                                        className={selectClassName}
                                     >
                                         <option className="bg-white text-black" value="">
                                             Select a grade level
@@ -232,7 +312,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
 
                         {recordType === 'teachers' && (
                             <div className="grid gap-1.5">
-                                <Label htmlFor="teacher-name" className="text-black">
+                                <Label htmlFor="teacher-name">
                                     Full name
                                 </Label>
                                 <Input
@@ -251,7 +331,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                         {recordType === 'subjects' && (
                             <>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="subject-name" className="text-black">
+                                    <Label htmlFor="subject-name">
                                         Subject name
                                     </Label>
                                     <Input
@@ -265,7 +345,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {fieldError('name')}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="subject-code" className="text-black">
+                                    <Label htmlFor="subject-code">
                                         Subject code
                                     </Label>
                                     <Input
@@ -290,7 +370,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
 
                         {recordType === 'sections' && (
                             <div className="grid gap-1.5">
-                                <Label htmlFor="section-name" className="text-black">
+                                <Label htmlFor="section-name">
                                     Section name
                                 </Label>
                                 <Input
@@ -330,7 +410,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {numberField('midterm_grade', 'Midterm', 0, 100)}
                                     {numberField('final_grade', 'Final', 0, 100)}
                                 </div>
-                                <p className="text-sm leading-5 text-black">
+                                <p className="text-sm leading-5 text-muted-foreground">
                                     Grades are averaged automatically. A final average of 75 or higher is marked as passed. The student’s section and
                                     the subject’s assigned teacher are used for this record.
                                 </p>
@@ -343,16 +423,19 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                 variant="outline"
                                 onClick={() => setOpen(false)}
                                 disabled={processing}
-                                className="border-slate-300 bg-white text-black hover:bg-slate-100 hover:text-black"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={processing}
-                                className="border border-emerald-700 bg-emerald-100 text-black hover:bg-emerald-200"
+                                disabled={processing || (recordType === 'students' && options.sections.length === 0)}
+                                className="bg-emerald-700 text-white hover:bg-emerald-800"
                             >
-                                {processing ? 'Saving…' : `Create ${title.toLowerCase()}`}
+                                {processing
+                                    ? 'Saving…'
+                                    : recordType === 'students' && options.sections.length === 0
+                                      ? 'Create a section first'
+                                      : `Create ${title.toLowerCase()}`}
                             </Button>
                         </DialogFooter>
                     </form>

@@ -10,8 +10,9 @@ return new class extends Migration
     {
         Schema::create('subjects', function (Blueprint $table) {
             $table->id();
-            $table->string('code', 20)->unique()->index();
-            $table->string('name');
+            $table->string('subject_code', 20)->unique();
+            $table->string('subject_name', 150);
+            $table->foreignId('teacher_id')->nullable()->constrained('teachers');
             $table->timestamps();
         });
     }

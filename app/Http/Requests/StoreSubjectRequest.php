@@ -11,39 +11,35 @@ class StoreSubjectRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('name') && ! $this->has('subject_name')) {
+            $this->merge(['subject_name' => $this->input('name')]);
+        }
+
+        if ($this->has('code') && ! $this->has('subject_code')) {
+            $this->merge(['subject_code' => $this->input('code')]);
+        }
+    }
+
     public function rules(): array
     {
         return [
-            'student_id'    => ['required', 'exists:students,id'],
-            'subject_id'    => ['required', 'exists:subjects,id'],
-            'teacher_id'    => ['required', 'exists:teachers,id'],
-            'section_id'    => ['required', 'exists:sections,id'],
-            'prelim_grade'  => ['required', 'numeric', 'between:0,100'],
-            'midterm_grade' => ['required', 'numeric', 'between:0,100'],
-            'final_grade'   => ['required', 'numeric', 'between:0,100'],
+            'subject_code' => ['required', 'string', 'max:20', 'unique:subjects,subject_code'],
+            'subject_name' => ['required', 'string', 'max:255'],
+            'teacher_id' => ['nullable', 'exists:teachers,id'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'student_id.required'    => 'A student must be selected.',
-            'student_id.exists'      => 'The selected student does not exist.',
-            'subject_id.required'    => 'A subject must be selected.',
-            'subject_id.exists'      => 'The selected subject does not exist.',
-            'teacher_id.required'    => 'A teacher must be selected.',
-            'teacher_id.exists'      => 'The selected teacher does not exist.',
-            'section_id.required'    => 'A section must be selected.',
-            'section_id.exists'      => 'The selected section does not exist.',
-            'prelim_grade.required'  => 'The prelim grade is required.',
-            'prelim_grade.numeric'   => 'The prelim grade must be a number.',
-            'prelim_grade.between'   => 'The prelim grade must be between 0 and 100.',
-            'midterm_grade.required' => 'The midterm grade is required.',
-            'midterm_grade.numeric'  => 'The midterm grade must be a number.',
-            'midterm_grade.between'  => 'The midterm grade must be between 0 and 100.',
-            'final_grade.required'   => 'The final grade is required.',
-            'final_grade.numeric'    => 'The final grade must be a number.',
-            'final_grade.between'    => 'The final grade must be between 0 and 100.',
+            'subject_code.required' => 'The subject code is required.',
+            'subject_code.unique' => 'This subject code already exists.',
+            'subject_code.max' => 'The subject code may not exceed 20 characters.',
+            'subject_name.required' => 'The subject name is required.',
+            'subject_name.max' => 'The subject name may not exceed 255 characters.',
+            'teacher_id.exists' => 'The selected teacher does not exist.',
         ];
     }
 }

@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Teacher extends Model
 {
-    protected $fillable = ['name', 'email'];
+    protected $fillable = ['name'];
 
-    public function grades(): HasMany
+    public function subjects(): HasMany
     {
-        return $this->hasMany(StudentGrade::class);
+        return $this->hasMany(Subject::class);
     }
 }

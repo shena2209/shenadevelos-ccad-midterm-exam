@@ -8,6 +8,7 @@ use App\Models\StudentGrade;
 use App\Models\Subject;
 use App\Models\Teacher;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class SchoolService
 {
@@ -29,15 +30,14 @@ class SchoolService
     public function createStudentGrade(array $data): StudentGrade
     {
         return DB::transaction(function () use ($data) {
-            $student = Student::firstOrNew([
-                'student_lrn' => $this->formatLrn($data['student_lrn']),
-            ]);
-            $student->fill([
-                'student_name' => $this->sanitizeString($data['student_name']),
-                'section_id' => $data['section_id'],
-            ])->save();
+            $student = $this->resolveStudent($data);
 
-            return $student->studentGrades()->create($this->gradeAttributes($data));
+            $grade = $student->grades()->create([
+                'subject_id' => $data['subject_id'],
+                ...$this->gradeAttributes($data),
+            ]);
+
+            return $grade->load(['student.section', 'subject.teacher']);
         });
     }
 
@@ -45,54 +45,74 @@ class SchoolService
     {
         return DB::transaction(function () use ($id, $data) {
             $studentGrade = StudentGrade::findOrFail($id);
-            $student = Student::firstOrNew([
-                'student_lrn' => $this->formatLrn($data['student_lrn']),
-            ]);
-            $student->fill([
-                'student_name' => $this->sanitizeString($data['student_name']),
-                'section_id' => $data['section_id'],
-            ])->save();
+            $student = $this->resolveStudent($data, $studentGrade->student_id);
 
             $studentGrade->update([
-                ...$this->gradeAttributes($data),
                 'student_id' => $student->id,
+                'subject_id' => $data['subject_id'] ?? $studentGrade->subject_id,
+                ...$this->gradeAttributes($data),
             ]);
 
-            return $studentGrade->load(['student.section', 'subject.teacher']);
+            return $studentGrade->fresh()->load(['student.section', 'subject.teacher']);
         });
     }
 
     public function subjectDependencies(): array
     {
-        return ['teachers' => Teacher::query()->orderBy('full_name')->get(['id', 'full_name'])];
+        return ['teachers' => Teacher::query()->orderBy('name')->get(['id', 'name'])];
     }
 
     public function studentGradeDependencies(): array
     {
         return [
-            'subjects' => Subject::query()->with('teacher:id,full_name')->orderBy('subject_name')->get(),
-            'sections' => Section::query()->orderBy('grade_level')->orderBy('section_name')->get(),
+            'subjects' => Subject::query()->with('teacher:id,name')->orderBy('subject_name')->get(),
+            'sections' => Section::query()->orderBy('name')->get(['id', 'name']),
         ];
     }
 
     private function sanitizeSubject(array $data): array
     {
         return [
-            'subject_code' => $this->sanitizeString($data['subject_code']),
-            'subject_name' => $this->sanitizeString($data['subject_name']),
-            'teacher_id' => $data['teacher_id'],
+            'subject_code' => $this->sanitizeString($data['subject_code'] ?? $data['code'] ?? ''),
+            'subject_name' => $this->sanitizeString($data['subject_name'] ?? $data['name'] ?? ''),
+            'teacher_id' => $data['teacher_id'] ?? null,
         ];
+    }
+
+    private function resolveStudent(array $data, ?int $fallbackStudentId = null): Student
+    {
+        if (! empty($data['student_id'])) {
+            return Student::findOrFail((int) $data['student_id']);
+        }
+
+        if (! empty($data['student_lrn'])) {
+            $lrn = $this->formatLrn((string) $data['student_lrn']);
+
+            return Student::firstOrCreate(
+                ['lrn' => $lrn],
+                [
+                    'name' => $this->sanitizeString($data['student_name'] ?? ''),
+                    'grade_level' => $data['grade_level'] ?? null,
+                    'section_id' => $data['section_id'] ?? null,
+                ]
+            );
+        }
+
+        if ($fallbackStudentId !== null) {
+            return Student::findOrFail($fallbackStudentId);
+        }
+
+        throw new InvalidArgumentException('A student record is required to create a grade.');
     }
 
     private function gradeAttributes(array $data): array
     {
-        $prelim = (float) $data['prelim_grade'];
-        $midterm = (float) $data['midterm_grade'];
-        $final = (float) $data['final_grade'];
+        $prelim = (float) ($data['prelim_grade'] ?? 0);
+        $midterm = (float) ($data['midterm_grade'] ?? 0);
+        $final = (float) ($data['final_grade'] ?? 0);
         $average = ($prelim + $midterm + $final) / 3;
 
         return [
-            'subject_id' => $data['subject_id'],
             'prelim_grade' => $prelim,
             'midterm_grade' => $midterm,
             'final_grade' => $final,
@@ -103,7 +123,7 @@ class SchoolService
 
     private function formatLrn(string $lrn): string
     {
-        return str_pad($lrn, 12, '0', STR_PAD_LEFT);
+        return str_pad((string) $lrn, 12, '0', STR_PAD_LEFT);
     }
 
     private function sanitizeString(string $value): string

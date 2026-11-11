@@ -3,12 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subject extends Model
 {
-    protected $fillable = ['code', 'name'];
+    protected $fillable = [
+        'subject_code',
+        'subject_name',
+        'teacher_id',
+    ];
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class);
+    }
 
     public function grades(): HasMany
     {
@@ -19,8 +29,6 @@ class Subject extends Model
     {
         return $this->belongsToMany(Student::class, 'student_grades')
             ->withPivot([
-                'teacher_id',
-                'section_id',
                 'prelim_grade',
                 'midterm_grade',
                 'final_grade',
