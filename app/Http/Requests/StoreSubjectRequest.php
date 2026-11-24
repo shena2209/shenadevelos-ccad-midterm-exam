@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreSubjectRequest extends FormRequest
 {
@@ -25,17 +24,10 @@ class StoreSubjectRequest extends FormRequest
 
     public function rules(): array
     {
-        $schoolConnection = config('database.school_connection');
-
         return [
-            'subject_code' => [
-                'required',
-                'string',
-                'max:20',
-                Rule::unique("{$schoolConnection}.subjects", 'subject_code'),
-            ],
+            'subject_code' => ['required', 'string', 'max:20', 'unique:subjects,subject_code'],
             'subject_name' => ['required', 'string', 'max:255'],
-            'teacher_id' => ['nullable', Rule::exists("{$schoolConnection}.teachers", 'id')],
+            'teacher_id' => ['nullable', 'exists:teachers,id'],
         ];
     }
 

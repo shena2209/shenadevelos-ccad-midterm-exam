@@ -30,7 +30,7 @@ class SubjectService
             'teacher_id' => ['nullable', 'integer', Rule::exists($this->schoolTable('teachers'), 'id')],
         ]);
 
-        return DB::transaction(fn () => Subject::create($data)->load('teacher'));
+        return DB::transaction(fn () => Subject::create($data));
     }
 
     public function update(int $id, array $data): Subject

@@ -25,7 +25,7 @@ class StudentGradeController extends Controller
     {
         $studentGrade = $this->studentGradeService->create($request->validated());
 
-        return response()->json($studentGrade, 201);
+        return response()->json($studentGrade->load(['student.section', 'subject.teacher']), 201);
     }
 
     public function update(UpdateStudentGradeRequest $request, string $id): JsonResponse

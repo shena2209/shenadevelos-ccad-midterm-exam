@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreStudentGradeRequest extends FormRequest
 {
@@ -14,20 +13,12 @@ class StoreStudentGradeRequest extends FormRequest
 
     public function rules(): array
     {
-        $schoolConnection = config('database.school_connection');
-
         return [
-            'student_id' => [
-                'nullable',
-                Rule::exists("{$schoolConnection}.students", 'id'),
-                Rule::unique("{$schoolConnection}.student_grades", 'student_id')
-                    ->where(fn ($query) => $query->where('subject_id', $this->input('subject_id'))),
-            ],
+            'student_id' => ['nullable', 'exists:students,id'],
             'student_lrn' => ['nullable', 'digits:12', 'required_without:student_id'],
             'student_name' => ['nullable', 'string', 'max:150'],
-            'grade_level' => ['nullable', 'string', 'max:20'],
-            'section_id' => ['nullable', Rule::exists("{$schoolConnection}.sections", 'id')],
-            'subject_id' => ['required', Rule::exists("{$schoolConnection}.subjects", 'id')],
+            'section_id' => ['nullable', 'exists:sections,id'],
+            'subject_id' => ['required', 'exists:subjects,id'],
             'prelim_grade' => ['nullable', 'numeric', 'between:0,100'],
             'midterm_grade' => ['nullable', 'numeric', 'between:0,100'],
             'final_grade' => ['nullable', 'numeric', 'between:0,100'],

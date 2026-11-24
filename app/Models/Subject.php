@@ -9,8 +9,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subject extends Model
 {
-    protected $connection = 'school';
-
     protected $fillable = [
         'subject_code',
         'subject_name',
