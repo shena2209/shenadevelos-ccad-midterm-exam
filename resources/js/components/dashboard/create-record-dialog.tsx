@@ -104,7 +104,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
     }
 
     function fieldError(field: string) {
-        return <InputError className="font-medium text-destructive" message={errors[field as keyof typeof errors]} />;
+        return <InputError className="text-destructive font-medium" message={errors[field as keyof typeof errors]} />;
     }
 
     function numberField(field: 'prelim_grade' | 'midterm_grade' | 'final_grade', label: string, min: number, max: number) {
@@ -117,7 +117,6 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                     min={min}
                     max={max}
                     step="0.01"
-                    required
                     value={data[field]}
                     onChange={(event) => setData(field, event.target.value)}
                     className={inputClassName}
@@ -137,12 +136,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
         return (
             <div className="grid gap-1.5">
                 <Label htmlFor={field}>{label}</Label>
-                <Select
-                    value={data[field]}
-                    onValueChange={(value) => setData(field, value)}
-                    required={required}
-                    disabled={items.length === 0}
-                >
+                <Select value={data[field]} onValueChange={(value) => setData(field, value)} required={required} disabled={items.length === 0}>
                     <SelectTrigger id={field} className={selectClassName} aria-label={label}>
                         <SelectValue placeholder={items.length === 0 ? 'No options available' : emptyLabel} />
                     </SelectTrigger>
@@ -179,7 +173,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                         maxLength={100}
                                         value={sectionData.name}
                                         onChange={(event) => setSectionData('name', event.target.value)}
-                                        className="h-10 bg-background"
+                                        className="bg-background h-10"
                                         autoFocus
                                     />
                                     {sectionErrors.name && <InputError message={sectionErrors.name} />}
@@ -248,9 +242,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                         {recordType === 'students' && (
                             <>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="student-name">
-                                        Full name
-                                    </Label>
+                                    <Label htmlFor="student-name">Full name</Label>
                                     <Input
                                         id="student-name"
                                         required
@@ -263,9 +255,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {fieldError('name')}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="lrn">
-                                        Learner reference number (LRN)
-                                    </Label>
+                                    <Label htmlFor="lrn">Learner reference number (LRN)</Label>
                                     <Input
                                         id="lrn"
                                         required
@@ -280,9 +270,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {fieldError('lrn')}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="grade_level">
-                                        Grade level
-                                    </Label>
+                                    <Label htmlFor="grade_level">Grade level</Label>
                                     <select
                                         id="grade_level"
                                         required
@@ -312,9 +300,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
 
                         {recordType === 'teachers' && (
                             <div className="grid gap-1.5">
-                                <Label htmlFor="teacher-name">
-                                    Full name
-                                </Label>
+                                <Label htmlFor="teacher-name">Full name</Label>
                                 <Input
                                     id="teacher-name"
                                     required
@@ -331,9 +317,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                         {recordType === 'subjects' && (
                             <>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="subject-name">
-                                        Subject name
-                                    </Label>
+                                    <Label htmlFor="subject-name">Subject name</Label>
                                     <Input
                                         id="subject-name"
                                         required
@@ -345,9 +329,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {fieldError('name')}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <Label htmlFor="subject-code">
-                                        Subject code
-                                    </Label>
+                                    <Label htmlFor="subject-code">Subject code</Label>
                                     <Input
                                         id="subject-code"
                                         required
@@ -370,9 +352,7 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
 
                         {recordType === 'sections' && (
                             <div className="grid gap-1.5">
-                                <Label htmlFor="section-name">
-                                    Section name
-                                </Label>
+                                <Label htmlFor="section-name">Section name</Label>
                                 <Input
                                     id="section-name"
                                     required
@@ -410,20 +390,15 @@ export default function CreateRecordDialog({ options, onCreated }: CreateRecordD
                                     {numberField('midterm_grade', 'Midterm', 0, 100)}
                                     {numberField('final_grade', 'Final', 0, 100)}
                                 </div>
-                                <p className="text-sm leading-5 text-muted-foreground">
-                                    Grades are averaged automatically. A final average of 75 or higher is marked as passed. The student’s section and
-                                    the subject’s assigned teacher are used for this record.
+                                <p className="text-muted-foreground text-sm leading-5">
+                                    Leave an assessment blank while it is ungraded. The record stays pending until Prelim, Midterm, and Final are all
+                                    entered; then the average and result are calculated. A final average of 75 or higher is marked as passed.
                                 </p>
                             </>
                         )}
 
                         <DialogFooter className="mt-2 gap-2 sm:gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setOpen(false)}
-                                disabled={processing}
-                            >
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={processing}>
                                 Cancel
                             </Button>
                             <Button

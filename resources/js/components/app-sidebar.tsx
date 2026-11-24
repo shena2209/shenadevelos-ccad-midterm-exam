@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { ClipboardList, LayoutGrid } from 'lucide-react';
+import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, Layers3, LayoutGrid, UsersRound } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -11,6 +11,31 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         url: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Students',
+        url: '/school-records/students',
+        icon: UsersRound,
+    },
+    {
+        title: 'Teachers',
+        url: '/school-records/teachers',
+        icon: GraduationCap,
+    },
+    {
+        title: 'Subjects',
+        url: '/school-records/subjects',
+        icon: BookOpen,
+    },
+    {
+        title: 'Sections',
+        url: '/school-records/sections',
+        icon: Layers3,
+    },
+    {
+        title: 'Attendance',
+        url: '/attendance',
+        icon: CalendarCheck,
     },
     {
         title: 'Grade records',

@@ -26,16 +26,17 @@ class UpdateSubjectRequest extends FormRequest
     public function rules(): array
     {
         $subjectId = $this->route('subject');
+        $schoolConnection = config('database.school_connection');
 
         return [
             'subject_code' => [
                 'required',
                 'string',
                 'max:20',
-                Rule::unique('subjects', 'subject_code')->ignore($subjectId),
+                Rule::unique("{$schoolConnection}.subjects", 'subject_code')->ignore($subjectId),
             ],
             'subject_name' => ['required', 'string', 'max:255'],
-            'teacher_id' => ['nullable', 'exists:teachers,id'],
+            'teacher_id' => ['nullable', Rule::exists("{$schoolConnection}.teachers", 'id')],
         ];
     }
 

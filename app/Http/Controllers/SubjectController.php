@@ -4,35 +4,32 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreSubjectRequest;
 use App\Http\Requests\UpdateSubjectRequest;
-use App\Models\Subject;
-use App\Services\SchoolService;
+use App\Services\SubjectService;
 use Illuminate\Http\JsonResponse;
 
 class SubjectController extends Controller
 {
-    public function __construct(private readonly SchoolService $schoolService) {}
+    public function __construct(private readonly SubjectService $subjectService) {}
 
     public function index(): JsonResponse
     {
-        return response()->json(
-            Subject::query()->with('teacher')->orderBy('subject_name')->paginate(15)
-        );
+        return response()->json($this->subjectService->paginate());
     }
 
     public function create(): JsonResponse
     {
-        return response()->json($this->schoolService->subjectDependencies());
+        return response()->json($this->subjectService->dependencies());
     }
 
     public function store(StoreSubjectRequest $request): JsonResponse
     {
-        $subject = $this->schoolService->createSubject($request->validated());
+        $subject = $this->subjectService->create($request->validated());
 
         return response()->json($subject->load('teacher'), 201);
     }
 
     public function update(UpdateSubjectRequest $request, string $id): JsonResponse
     {
-        return response()->json($this->schoolService->updateSubject((int) $id, $request->validated()));
+        return response()->json($this->subjectService->update((int) $id, $request->validated()));
     }
 }

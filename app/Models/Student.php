@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Student extends Model
 {
+    protected $connection = 'school';
+
     protected $fillable = [
         'lrn',
         'name',

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateStudentGradeRequest extends FormRequest
 {
@@ -13,15 +14,27 @@ class UpdateStudentGradeRequest extends FormRequest
 
     public function rules(): array
     {
+        $schoolConnection = config('database.school_connection');
+        $gradeId = $this->route('student')
+            ?? $this->route('StudentGrade')
+            ?? $this->route('grade');
+
         return [
-            'student_id' => ['nullable', 'exists:students,id'],
+            'student_id' => [
+                'nullable',
+                Rule::exists("{$schoolConnection}.students", 'id'),
+                $gradeId ? Rule::unique("{$schoolConnection}.student_grades", 'student_id')
+                    ->ignore($gradeId)
+                    ->where(fn ($query) => $query->where('subject_id', $this->input('subject_id'))) : 'bail',
+            ],
             'student_lrn' => ['nullable', 'digits:12', 'required_without:student_id'],
             'student_name' => ['nullable', 'string', 'max:150'],
-            'section_id' => ['nullable', 'exists:sections,id'],
-            'subject_id' => ['required', 'exists:subjects,id'],
-            'prelim_grade' => ['required', 'numeric', 'between:0,100'],
-            'midterm_grade' => ['required', 'numeric', 'between:0,100'],
-            'final_grade' => ['required', 'numeric', 'between:0,100'],
+            'grade_level' => ['nullable', 'string', 'max:20'],
+            'section_id' => ['nullable', Rule::exists("{$schoolConnection}.sections", 'id')],
+            'subject_id' => ['required', Rule::exists("{$schoolConnection}.subjects", 'id')],
+            'prelim_grade' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
+            'midterm_grade' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
+            'final_grade' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
         ];
     }
 
@@ -35,13 +48,10 @@ class UpdateStudentGradeRequest extends FormRequest
             'section_id.exists' => 'The selected section does not exist.',
             'subject_id.required' => 'A subject must be selected.',
             'subject_id.exists' => 'The selected subject does not exist.',
-            'prelim_grade.required' => 'The prelim grade is required.',
             'prelim_grade.numeric' => 'The prelim grade must be a number.',
             'prelim_grade.between' => 'The prelim grade must be between 0 and 100.',
-            'midterm_grade.required' => 'The midterm grade is required.',
             'midterm_grade.numeric' => 'The midterm grade must be a number.',
             'midterm_grade.between' => 'The midterm grade must be between 0 and 100.',
-            'final_grade.required' => 'The final grade is required.',
             'final_grade.numeric' => 'The final grade must be a number.',
             'final_grade.between' => 'The final grade must be between 0 and 100.',
         ];

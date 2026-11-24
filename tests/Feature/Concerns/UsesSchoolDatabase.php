@@ -21,6 +21,10 @@ trait UsesSchoolDatabase
         ]);
         DB::purge('school');
 
+        if (DB::connection('school')->getDriverName() !== 'sqlite') {
+            throw new \RuntimeException('School database tests must use an isolated SQLite connection.');
+        }
+
         $schema = Schema::connection('school');
         $schema->create('sections', function (Blueprint $table) {
             $table->id();
@@ -34,6 +38,15 @@ trait UsesSchoolDatabase
             $table->string('grade_level', 20);
             $table->foreignId('section_id')->constrained('sections');
             $table->timestamps();
+        });
+        $schema->create('student_attendances', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
+            $table->date('attendance_date');
+            $table->string('status', 20);
+            $table->string('notes', 255)->nullable();
+            $table->timestamps();
+            $table->unique(['student_id', 'attendance_date']);
         });
         $schema->create('teachers', function (Blueprint $table) {
             $table->id();
