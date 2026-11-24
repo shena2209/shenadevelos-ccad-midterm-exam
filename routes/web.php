@@ -21,6 +21,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('teachers', 'teachers')->name('teachers');
         Route::get('subjects', 'subjects')->name('subjects');
         Route::get('sections', 'sections')->name('sections');
+    });
+    Route::prefix('school-records')->name('school-records.')->controller(DashboardRecordController::class)->group(function () {
+        Route::patch('students/{student}', 'updateStudent')->name('students.update');
+        Route::delete('students/{student}', 'destroyStudent')->name('students.destroy');
         Route::patch('teachers/{teacher}', 'updateTeacher')->name('teachers.update');
         Route::delete('teachers/{teacher}', 'destroyTeacher')->name('teachers.destroy');
         Route::patch('subjects/{subject}', 'updateSubject')->name('subjects.update');
@@ -170,8 +174,6 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('dashboard/records')->name('dashboard.records.')->controller(DashboardRecordController::class)->group(function () {
         Route::post('students', 'storeStudent')->name('students.store');
-        Route::patch('students/{student}', 'updateStudent')->name('students.update');
-        Route::delete('students/{student}', 'destroyStudent')->name('students.destroy');
         Route::post('teachers', 'storeTeacher')->name('teachers.store');
         Route::post('subjects', 'storeSubject')->name('subjects.store');
         Route::post('sections', 'storeSection')->name('sections.store');

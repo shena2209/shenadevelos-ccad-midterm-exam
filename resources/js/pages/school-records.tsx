@@ -7,8 +7,18 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { Eye, Pencil, Search, Trash2 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { Pencil, Search, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+
+type RecordTitle = 'Students' | 'Teachers' | 'Subjects' | 'Sections';
+
+interface EnrolledStudent {
+    id: number;
+    name: string;
+    lrn: string;
+    grade_level: string;
+}
 
 interface SchoolRecord {
     id: number;
@@ -21,98 +31,106 @@ interface SchoolRecord {
     code?: string;
     teacher_id?: number | null;
     teacher_name?: string | null;
-    subjects?: { id: number; name: string; code: string }[];
-    students?: { id: number; name: string; lrn: string; grade_level: string }[];
-}
-
-interface SectionOption {
-    id: number;
-    name: string;
+    subject_count?: number;
+    student_count?: number;
+    students?: EnrolledStudent[];
 }
 
 interface SchoolRecordsProps {
-    title: 'Students' | 'Teachers' | 'Subjects' | 'Sections';
+    title: RecordTitle;
     records: SchoolRecord[];
-    sections?: SectionOption[];
-    teachers?: SectionOption[];
+    options: {
+        sections?: { id: number; name: string }[];
+        teachers?: { id: number; name: string }[];
+    };
 }
 
-const singularLabels: Record<SchoolRecordsProps['title'], string> = {
+const singularLabels: Record<RecordTitle, string> = {
     Students: 'student',
     Teachers: 'teacher',
     Subjects: 'subject',
     Sections: 'section',
 };
 
-const deleteDescriptions: Record<SchoolRecordsProps['title'], string> = {
-    Students: 'This student can only be deleted if they have no linked grade or attendance records.',
-    Teachers: 'This teacher can only be deleted if no subjects are assigned to them.',
-    Subjects: 'This subject can only be deleted if it has no linked grade records.',
-    Sections: 'This section can only be deleted if no students are enrolled in it.',
+const resources: Record<RecordTitle, string> = {
+    Students: 'students',
+    Teachers: 'teachers',
+    Subjects: 'subjects',
+    Sections: 'sections',
 };
 
-export default function SchoolRecords({ title, records, sections = [], teachers = [] }: SchoolRecordsProps) {
+export default function SchoolRecords({ title, records, options }: SchoolRecordsProps) {
     const [search, setSearch] = useState('');
     const [selectedRecord, setSelectedRecord] = useState<SchoolRecord | null>(null);
-    const [editingRecord, setEditingRecord] = useState<SchoolRecord | null>(null);
-    const [deletingRecord, setDeletingRecord] = useState<SchoolRecord | null>(null);
-    const editForm = useForm({
-        name: '',
-        lrn: '',
-        grade_level: '',
-        section_id: '',
-        subject_name: '',
-        subject_code: '',
-        teacher_id: '',
-    });
-    const deleteForm = useForm({ record: '', student: '' });
+    const [editing, setEditing] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
     const singularLabel = singularLabels[title];
+    const resource = resources[title];
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title, href: `/school-records/${title.toLowerCase()}` },
+        { title, href: `/school-records/${resource}` },
     ];
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase();
 
         return query ? records.filter((record) => `${record.name} ${record.detail}`.toLowerCase().includes(query)) : records;
     }, [records, search]);
+    const { data, setData, patch, processing, errors, clearErrors } = useForm({
+        name: '',
+        lrn: '',
+        grade_level: '',
+        section_id: '',
+        code: '',
+        teacher_id: '',
+    });
+    const { delete: destroy, processing: deleting, errors: deleteErrors } = useForm<{ record: string }>({ record: '' });
 
-    function recordRoutePrefix() {
-        return title === 'Students' ? 'dashboard.records.students' : `school-records.${title.toLowerCase()}`;
-    }
-
-    function editRecord(record: SchoolRecord) {
-        setSelectedRecord(null);
-        editForm.clearErrors();
-        editForm.setData({
+    function selectRecord(record: SchoolRecord) {
+        setSelectedRecord(record);
+        setEditing(false);
+        setConfirmingDelete(false);
+        setData({
             name: record.name,
             lrn: record.lrn ?? '',
             grade_level: record.grade_level ?? '',
-            section_id: String(record.section_id ?? ''),
-            subject_name: title === 'Subjects' ? record.name : '',
-            subject_code: title === 'Subjects' ? (record.code ?? '') : '',
-            teacher_id: String(record.teacher_id ?? ''),
+            section_id: record.section_id ? String(record.section_id) : '',
+            code: record.code ?? '',
+            teacher_id: record.teacher_id ? String(record.teacher_id) : '',
         });
-        setEditingRecord(record);
+        clearErrors();
+    }
+
+    function closeDetails(open: boolean) {
+        if (open) return;
+
+        setSelectedRecord(null);
+        setEditing(false);
+        setConfirmingDelete(false);
+        clearErrors();
     }
 
     function submitEdit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        if (!selectedRecord) return;
 
-        if (!editingRecord) return;
-
-        editForm.patch(route(`${recordRoutePrefix()}.update`, editingRecord.id), {
+        patch(route(`school-records.${resource}.update`, selectedRecord.id), {
             preserveScroll: true,
-            onSuccess: () => setEditingRecord(null),
+            onSuccess: () => {
+                setSelectedRecord(null);
+                setEditing(false);
+            },
         });
     }
 
     function deleteRecord() {
-        if (!deletingRecord) return;
+        if (!selectedRecord) return;
 
-        deleteForm.delete(route(`${recordRoutePrefix()}.destroy`, deletingRecord.id), {
+        destroy(route(`school-records.${resource}.destroy`, selectedRecord.id), {
             preserveScroll: true,
-            onSuccess: () => setDeletingRecord(null),
+            onSuccess: () => {
+                setSelectedRecord(null);
+                setConfirmingDelete(false);
+            },
         });
     }
 
@@ -144,59 +162,24 @@ export default function SchoolRecords({ title, records, sections = [], teachers 
                 <Card className="overflow-hidden shadow-sm">
                     <CardHeader className="border-b">
                         <CardTitle className="text-lg">{singularLabel} records</CardTitle>
-                        <CardDescription>Select a record to view its details.</CardDescription>
+                        <CardDescription>Select a record to view, edit, or delete it.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         {filteredRecords.length > 0 ? (
                             <div className="divide-y">
                                 {filteredRecords.map((record) => (
-                                    <div
+                                    <button
                                         key={record.id}
-                                        className="hover:bg-muted/30 flex items-center justify-between gap-4 px-6 py-4 transition-colors"
+                                        type="button"
+                                        aria-label={`View ${singularLabel} record for ${record.name}`}
+                                        onClick={() => selectRecord(record)}
+                                        className="hover:bg-muted/30 focus-visible:ring-ring flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
                                     >
-                                        <button
-                                            type="button"
-                                            aria-label={`View ${singularLabel} record for ${record.name}`}
-                                            onClick={() => setSelectedRecord(record)}
-                                            className="focus-visible:ring-ring min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:outline-hidden"
-                                        >
+                                        <div className="min-w-0">
                                             <p className="truncate font-medium">{record.name}</p>
                                             <p className="text-muted-foreground mt-1 text-sm">{record.detail}</p>
-                                        </button>
-                                        <div className="flex shrink-0 items-center gap-1">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={`View ${singularLabel} ${record.name}`}
-                                                onClick={() => setSelectedRecord(record)}
-                                            >
-                                                <Eye />
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={`Edit ${singularLabel} ${record.name}`}
-                                                onClick={() => editRecord(record)}
-                                            >
-                                                <Pencil />
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={`Delete ${singularLabel} ${record.name}`}
-                                                onClick={() => {
-                                                    deleteForm.clearErrors();
-                                                    setDeletingRecord(record);
-                                                }}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 />
-                                            </Button>
                                         </div>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         ) : (
@@ -206,269 +189,250 @@ export default function SchoolRecords({ title, records, sections = [], teachers 
                         )}
                     </CardContent>
                 </Card>
-                <Dialog open={selectedRecord !== null} onOpenChange={(open) => !open && setSelectedRecord(null)}>
-                    <DialogContent>
+
+                <Dialog open={selectedRecord !== null} onOpenChange={closeDetails}>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
                         <DialogHeader>
-                            <DialogTitle>{singularLabel} details</DialogTitle>
-                            <DialogDescription>Record information from your school data.</DialogDescription>
-                        </DialogHeader>
-                        {selectedRecord && (
-                            <div className="rounded-lg border p-4">
-                                <p className="font-medium">{selectedRecord.name}</p>
-                                <p className="text-muted-foreground mt-1 text-sm">{selectedRecord.detail}</p>
-                                {title === 'Students' && (
-                                    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                                        <div>
-                                            <dt className="text-muted-foreground">LRN</dt>
-                                            <dd className="font-medium">{selectedRecord.lrn}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted-foreground">Grade level</dt>
-                                            <dd className="font-medium">{selectedRecord.grade_level}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted-foreground">Section</dt>
-                                            <dd className="font-medium">{selectedRecord.section_name}</dd>
-                                        </div>
-                                    </dl>
-                                )}
-                                {title === 'Teachers' && (
-                                    <div className="mt-4">
-                                        <p className="text-muted-foreground text-sm">Assigned subjects</p>
-                                        {selectedRecord.subjects?.length ? (
-                                            <ul className="mt-2 space-y-2 text-sm">
-                                                {selectedRecord.subjects.map((subject) => (
-                                                    <li key={subject.id} className="bg-muted/40 rounded-md px-3 py-2">
-                                                        <span className="font-medium">{subject.name}</span>
-                                                        <span className="text-muted-foreground"> · {subject.code}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="text-muted-foreground mt-2 text-sm">No subjects assigned.</p>
-                                        )}
-                                    </div>
-                                )}
-                                {title === 'Subjects' && (
-                                    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                                        <div>
-                                            <dt className="text-muted-foreground">Subject code</dt>
-                                            <dd className="font-medium">{selectedRecord.code}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-muted-foreground">Assigned teacher</dt>
-                                            <dd className="font-medium">{selectedRecord.teacher_name ?? 'No teacher assigned'}</dd>
-                                        </div>
-                                    </dl>
-                                )}
-                                {title === 'Sections' && (
-                                    <div className="mt-4">
-                                        <p className="text-muted-foreground text-sm">Enrolled students</p>
-                                        {selectedRecord.students?.length ? (
-                                            <ul className="mt-2 max-h-60 space-y-2 overflow-y-auto text-sm">
-                                                {selectedRecord.students.map((student) => (
-                                                    <li key={student.id} className="bg-muted/40 rounded-md px-3 py-2">
-                                                        <p className="font-medium">{student.name}</p>
-                                                        <p className="text-muted-foreground mt-1">
-                                                            LRN {student.lrn} · {student.grade_level}
-                                                        </p>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="text-muted-foreground mt-2 text-sm">No students are enrolled in this section.</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        <DialogFooter>
-                            {selectedRecord && (
-                                <Button
-                                    type="button"
-                                    onClick={() => editRecord(selectedRecord)}
-                                    className="bg-emerald-700 text-white hover:bg-emerald-800"
-                                >
-                                    <Pencil />
-                                    Edit
-                                </Button>
-                            )}
-                            <Button type="button" variant="outline" onClick={() => setSelectedRecord(null)}>
-                                Close
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                <Dialog open={editingRecord !== null} onOpenChange={(open) => !open && setEditingRecord(null)}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Edit {singularLabel}</DialogTitle>
-                            <DialogDescription>Update this {singularLabel} record.</DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={submitEdit} className="grid gap-4">
-                            {title === 'Students' && (
-                                <>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-student-name">Full name</Label>
-                                        <Input
-                                            id="edit-student-name"
-                                            required
-                                            maxLength={150}
-                                            value={editForm.data.subject_name}
-                                            onChange={(event) => editForm.setData('subject_name', event.target.value)}
-                                        />
-                                        <InputError message={editForm.errors.subject_name} />
-                                    </div>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-student-lrn">Learner reference number (LRN)</Label>
-                                        <Input
-                                            id="edit-student-lrn"
-                                            required
-                                            inputMode="numeric"
-                                            maxLength={12}
-                                            pattern="[0-9]{12}"
-                                            value={editForm.data.lrn}
-                                            onChange={(event) => editForm.setData('lrn', event.target.value.replace(/\D/g, '').slice(0, 12))}
-                                        />
-                                        <InputError message={editForm.errors.lrn} />
-                                    </div>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-student-grade">Grade level</Label>
-                                        <select
-                                            id="edit-student-grade"
-                                            required
-                                            value={editForm.data.grade_level}
-                                            onChange={(event) => editForm.setData('grade_level', event.target.value)}
-                                            className="border-input bg-background text-foreground h-10 w-full rounded-md border px-3 py-2 text-sm"
-                                        >
-                                            {Array.from({ length: 12 }, (_, index) => `Grade ${index + 1}`).map((grade) => (
-                                                <option key={grade} value={grade}>
-                                                    {grade}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError message={editForm.errors.grade_level} />
-                                    </div>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-student-section">Section</Label>
-                                        <select
-                                            id="edit-student-section"
-                                            required
-                                            value={editForm.data.section_id}
-                                            onChange={(event) => editForm.setData('section_id', event.target.value)}
-                                            className="border-input bg-background text-foreground h-10 w-full rounded-md border px-3 py-2 text-sm"
-                                        >
-                                            <option value="">Select a section</option>
-                                            {sections.map((section) => (
-                                                <option key={section.id} value={section.id}>
-                                                    {section.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError message={editForm.errors.section_id} />
-                                    </div>
-                                </>
-                            )}
-                            {title === 'Teachers' && (
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="edit-teacher-name">Full name</Label>
-                                    <Input
-                                        id="edit-teacher-name"
-                                        required
-                                        maxLength={150}
-                                        value={editForm.data.name}
-                                        onChange={(event) => editForm.setData('name', event.target.value)}
-                                    />
-                                    <InputError message={editForm.errors.name} />
-                                </div>
-                            )}
-                            {title === 'Subjects' && (
-                                <>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-subject-name">Subject name</Label>
-                                        <Input
-                                            id="edit-subject-name"
-                                            required
-                                            maxLength={150}
-                                            value={editForm.data.name}
-                                            onChange={(event) => editForm.setData('name', event.target.value)}
-                                        />
-                                        <InputError message={editForm.errors.name} />
-                                    </div>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-subject-code">Subject code</Label>
-                                        <Input
-                                            id="edit-subject-code"
-                                            required
-                                            maxLength={20}
-                                            value={editForm.data.subject_code}
-                                            onChange={(event) => editForm.setData('subject_code', event.target.value)}
-                                        />
-                                        <InputError message={editForm.errors.subject_code} />
-                                    </div>
-                                    <div className="grid gap-1.5">
-                                        <Label htmlFor="edit-subject-teacher">Assigned teacher</Label>
-                                        <select
-                                            id="edit-subject-teacher"
-                                            value={editForm.data.teacher_id}
-                                            onChange={(event) => editForm.setData('teacher_id', event.target.value)}
-                                            className="border-input bg-background text-foreground h-10 w-full rounded-md border px-3 py-2 text-sm"
-                                        >
-                                            <option value="">No teacher assigned</option>
-                                            {teachers.map((teacher) => (
-                                                <option key={teacher.id} value={teacher.id}>
-                                                    {teacher.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError message={editForm.errors.teacher_id} />
-                                    </div>
-                                </>
-                            )}
-                            {title === 'Sections' && (
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="edit-section-name">Section name</Label>
-                                    <Input
-                                        id="edit-section-name"
-                                        required
-                                        maxLength={100}
-                                        value={editForm.data.name}
-                                        onChange={(event) => editForm.setData('name', event.target.value)}
-                                    />
-                                    <InputError message={editForm.errors.name} />
-                                </div>
-                            )}
-                            <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setEditingRecord(null)} disabled={editForm.processing}>
-                                    Cancel
-                                </Button>
-                                <Button type="submit" disabled={editForm.processing} className="bg-emerald-700 text-white hover:bg-emerald-800">
-                                    {editForm.processing ? 'Saving…' : 'Save changes'}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-                <Dialog open={deletingRecord !== null} onOpenChange={(open) => !open && setDeletingRecord(null)}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Delete {singularLabel}?</DialogTitle>
+                            <DialogTitle>{editing ? `Edit ${singularLabel}` : `${singularLabel} details`}</DialogTitle>
                             <DialogDescription>
-                                Delete {deletingRecord?.name}. {deleteDescriptions[title]}
+                                {editing ? `Update this ${singularLabel} record.` : 'Record information from your school data.'}
                             </DialogDescription>
                         </DialogHeader>
-                        <InputError message={title === 'Students' ? deleteForm.errors.student : deleteForm.errors.record} />
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setDeletingRecord(null)} disabled={deleteForm.processing}>
-                                Cancel
-                            </Button>
-                            <Button type="button" variant="destructive" onClick={deleteRecord} disabled={deleteForm.processing}>
-                                {deleteForm.processing ? 'Deleting…' : `Delete ${singularLabel}`}
-                            </Button>
-                        </DialogFooter>
+
+                        {selectedRecord && editing && (
+                            <form onSubmit={submitEdit} className="grid gap-4">
+                                {(title === 'Students' || title === 'Teachers') && (
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="record-name">Full name</Label>
+                                        <Input
+                                            id="record-name"
+                                            required
+                                            maxLength={150}
+                                            value={data.name}
+                                            onChange={(event) => setData('name', event.target.value)}
+                                        />
+                                        <InputError message={errors.name} />
+                                    </div>
+                                )}
+
+                                {title === 'Students' && (
+                                    <>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="record-lrn">Learner reference number (LRN)</Label>
+                                            <Input
+                                                id="record-lrn"
+                                                required
+                                                inputMode="numeric"
+                                                maxLength={12}
+                                                pattern="[0-9]{12}"
+                                                value={data.lrn}
+                                                onChange={(event) => setData('lrn', event.target.value.replace(/\D/g, '').slice(0, 12))}
+                                            />
+                                            <InputError message={errors.lrn} />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="record-grade-level">Grade level</Label>
+                                            <select
+                                                id="record-grade-level"
+                                                required
+                                                value={data.grade_level}
+                                                onChange={(event) => setData('grade_level', event.target.value)}
+                                                className="border-input bg-background text-foreground h-10 w-full rounded-md border px-3 py-2 text-sm"
+                                            >
+                                                <option value="">Select a grade level</option>
+                                                {Array.from({ length: 12 }, (_, index) => `Grade ${index + 1}`).map((grade) => (
+                                                    <option key={grade} value={grade}>
+                                                        {grade}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError message={errors.grade_level} />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="record-section">Section</Label>
+                                            <select
+                                                id="record-section"
+                                                required
+                                                value={data.section_id}
+                                                onChange={(event) => setData('section_id', event.target.value)}
+                                                className="border-input bg-background text-foreground h-10 w-full rounded-md border px-3 py-2 text-sm"
+                                            >
+                                                <option value="">Select a section</option>
+                                                {options.sections?.map((section) => (
+                                                    <option key={section.id} value={section.id}>
+                                                        {section.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError message={errors.section_id} />
+                                        </div>
+                                    </>
+                                )}
+
+                                {title === 'Subjects' && (
+                                    <>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="record-subject-name">Subject name</Label>
+                                            <Input
+                                                id="record-subject-name"
+                                                required
+                                                maxLength={150}
+                                                value={data.name}
+                                                onChange={(event) => setData('name', event.target.value)}
+                                            />
+                                            <InputError message={errors.name} />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="record-subject-code">Subject code</Label>
+                                            <Input
+                                                id="record-subject-code"
+                                                required
+                                                maxLength={20}
+                                                value={data.code}
+                                                onChange={(event) => setData('code', event.target.value)}
+                                            />
+                                            <InputError message={errors.code} />
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                            <Label htmlFor="record-teacher">Assigned teacher</Label>
+                                            <select
+                                                id="record-teacher"
+                                                value={data.teacher_id}
+                                                onChange={(event) => setData('teacher_id', event.target.value)}
+                                                className="border-input bg-background text-foreground h-10 w-full rounded-md border px-3 py-2 text-sm"
+                                            >
+                                                <option value="">No teacher assigned</option>
+                                                {options.teachers?.map((teacher) => (
+                                                    <option key={teacher.id} value={teacher.id}>
+                                                        {teacher.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError message={errors.teacher_id} />
+                                        </div>
+                                    </>
+                                )}
+
+                                {title === 'Sections' && (
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="record-section-name">Section name</Label>
+                                        <Input
+                                            id="record-section-name"
+                                            required
+                                            maxLength={100}
+                                            value={data.name}
+                                            onChange={(event) => setData('name', event.target.value)}
+                                        />
+                                        <InputError message={errors.name} />
+                                    </div>
+                                )}
+
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={processing}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={processing} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                                        {processing ? 'Saving…' : 'Save changes'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        )}
+
+                        {selectedRecord && !editing && (
+                            <>
+                                <div className="rounded-lg border p-4">
+                                    <p className="font-medium">{selectedRecord.name}</p>
+                                    <dl className="mt-3 grid gap-2 text-sm">
+                                        {title === 'Students' && (
+                                            <>
+                                                <Detail label="LRN" value={selectedRecord.lrn} />
+                                                <Detail label="Grade level" value={selectedRecord.grade_level} />
+                                                <Detail label="Section" value={selectedRecord.section_name} />
+                                            </>
+                                        )}
+                                        {title === 'Teachers' && (
+                                            <Detail label="Assigned subjects" value={selectedRecord.subject_count ?? 0} />
+                                        )}
+                                        {title === 'Subjects' && (
+                                            <>
+                                                <Detail label="Subject code" value={selectedRecord.code} />
+                                                <Detail label="Assigned teacher" value={selectedRecord.teacher_name ?? 'No teacher assigned'} />
+                                            </>
+                                        )}
+                                        {title === 'Sections' && (
+                                            <>
+                                                <Detail label="Enrolled students" value={selectedRecord.student_count ?? 0} />
+                                                {selectedRecord.students && selectedRecord.students.length > 0 ? (
+                                                    <ul className="mt-3 divide-y border-t" aria-label="Students enrolled in this section">
+                                                        {selectedRecord.students.map((student) => (
+                                                            <li key={student.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                                                <span className="font-medium">{student.name}</span>
+                                                                <span className="text-muted-foreground text-xs">
+                                                                    LRN {student.lrn} · {student.grade_level}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="text-muted-foreground mt-3 border-t pt-3 text-sm">
+                                                        No students are enrolled in this section.
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
+                                    </dl>
+                                </div>
+
+                                {confirmingDelete ? (
+                                    <div className="grid gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+                                        <div>
+                                            <p className="font-medium">Delete this {singularLabel}?</p>
+                                            <p className="text-muted-foreground mt-1 text-sm">
+                                                This action cannot be undone. Records with linked data cannot be deleted.
+                                            </p>
+                                        </div>
+                                        {deleteErrors.record && <InputError message={deleteErrors.record} />}
+                                        <div className="flex justify-end gap-2">
+                                            <Button type="button" variant="outline" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
+                                                Cancel
+                                            </Button>
+                                            <Button type="button" variant="destructive" onClick={deleteRecord} disabled={deleting}>
+                                                {deleting ? 'Deleting…' : 'Delete record'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {deleteErrors.record && <InputError message={deleteErrors.record} />}
+                                        <DialogFooter>
+                                            <Button type="button" variant="outline" onClick={() => closeDetails(false)}>
+                                                Close
+                                            </Button>
+                                            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+                                                <Pencil />
+                                                Edit
+                                            </Button>
+                                            <Button type="button" variant="destructive" onClick={() => setConfirmingDelete(true)}>
+                                                <Trash2 />
+                                                Delete
+                                            </Button>
+                                        </DialogFooter>
+                                    </>
+                                )}
+                            </>
+                        )}
                     </DialogContent>
                 </Dialog>
             </main>
         </AppLayout>
+    );
+}
+
+function Detail({ label, value }: { label: string; value?: string | number | null }) {
+    return (
+        <div className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-3">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd>{value ?? '—'}</dd>
+        </div>
     );
 }

@@ -2,17 +2,15 @@
 
 namespace App\Services;
 
-use App\Models\Student;
-use App\Models\StudentAttendance;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class StudentAttendanceService
 {
     public function dailyAttendance(string $date): array
     {
-        $students = Student::query()
+        $school = $this->schoolConnection();
+        $students = $school->table('students')
             ->join('sections', 'students.section_id', '=', 'sections.id')
             ->leftJoin('student_attendances as attendance', function ($join) use ($date) {
                 $join->on('attendance.student_id', '=', 'students.id')
@@ -33,7 +31,7 @@ class StudentAttendanceService
         $present = $students->where('status', 'Present')->count();
         $late = $students->where('status', 'Late')->count();
         $totalStudents = $students->count();
-        $history = StudentAttendance::query()
+        $history = $school->table('student_attendances')
             ->select('attendance_date')
             ->selectRaw('COUNT(*) as marked')
             ->selectRaw("SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present")
@@ -52,8 +50,7 @@ class StudentAttendanceService
                 'late' => (int) $record->late,
                 'excused' => (int) $record->excused,
             ]);
-        $attendanceDetails = StudentAttendance::query()
-            ->from('student_attendances as attendance')
+        $attendanceDetails = $school->table('student_attendances as attendance')
             ->join('students', 'attendance.student_id', '=', 'students.id')
             ->join('sections', 'students.section_id', '=', 'sections.id')
             ->whereIn('attendance.attendance_date', $history->pluck('date'))
@@ -103,58 +100,28 @@ class StudentAttendanceService
         ];
     }
 
-    public function saveAttendance(string $date, array $records): int
+    public function saveAttendance(string $date, array $records): void
     {
-        $date = trim(strip_tags($date));
-        $records = array_map(function ($record) {
-            if (! is_array($record)) {
-                return $record;
-            }
-
-            return [
-                ...$record,
-                'student_id' => is_string($record['student_id'] ?? null)
-                    ? trim($record['student_id'])
-                    : ($record['student_id'] ?? null),
-                'status' => is_string($record['status'] ?? null)
-                    ? trim(strip_tags($record['status']))
-                    : ($record['status'] ?? null),
-                'notes' => is_string($record['notes'] ?? null)
-                    ? trim(strip_tags($record['notes']))
-                    : ($record['notes'] ?? null),
-            ];
-        }, $records);
-        $schoolConnection = config('database.school_connection');
-        $validated = Validator::make([
-            'date' => $date,
-            'records' => $records,
-        ], [
-            'date' => ['required', 'date_format:Y-m-d'],
-            'records' => ['required', 'array', 'min:1'],
-            'records.*.student_id' => [
-                'required',
-                'integer',
-                'distinct',
-                Rule::exists("{$schoolConnection}.students", 'id'),
-            ],
-            'records.*.status' => ['required', Rule::in(['Present', 'Absent', 'Late', 'Excused'])],
-            'records.*.notes' => ['nullable', 'string', 'max:255'],
-        ])->validate();
-
         $now = now();
         $rows = array_map(fn (array $record) => [
             'student_id' => $record['student_id'],
-            'attendance_date' => $validated['date'],
+            'attendance_date' => $date,
             'status' => $record['status'],
             'notes' => $record['notes'] ?? null,
             'created_at' => $now,
             'updated_at' => $now,
-        ], $validated['records']);
+        ], $records);
 
-        return DB::transaction(fn () => StudentAttendance::query()->upsert(
+        $school = $this->schoolConnection();
+        $school->transaction(fn () => $school->table('student_attendances')->upsert(
             $rows,
             ['student_id', 'attendance_date'],
             ['status', 'notes', 'updated_at'],
         ));
+    }
+
+    private function schoolConnection(): Connection
+    {
+        return DB::connection(config('database.school_connection'));
     }
 }

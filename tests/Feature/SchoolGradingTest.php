@@ -3,10 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Services\DashboardRecordService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
 use Tests\Feature\Concerns\UsesSchoolDatabase;
 use Tests\TestCase;
@@ -65,18 +63,6 @@ class SchoolGradingTest extends TestCase
             'computed_gpa' => 75,
             'pass_fail_status' => 'Passed',
         ], 'school');
-    }
-
-    public function test_dashboard_record_service_sanitizes_and_validates_input(): void
-    {
-        $service = app(DashboardRecordService::class);
-
-        $service->createTeacher(['name' => '  <b>Teacher Example</b>  ']);
-
-        $this->assertDatabaseHas('teachers', ['name' => 'Teacher Example'], 'school');
-
-        $this->expectException(ValidationException::class);
-        $service->createTeacher(['name' => '<b></b>']);
     }
 
     public function test_incomplete_grade_records_are_pending_until_all_assessments_are_entered(): void

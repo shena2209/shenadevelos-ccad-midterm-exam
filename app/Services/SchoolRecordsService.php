@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Student;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class SchoolRecordsService
 {
@@ -24,55 +24,31 @@ class SchoolRecordsService
             ->map(fn ($student) => [
                 'id' => $student->id,
                 'name' => $student->name,
+                'detail' => "LRN {$student->lrn} · {$student->grade_level} · {$student->section_name}",
                 'lrn' => $student->lrn,
                 'grade_level' => $student->grade_level,
                 'section_id' => $student->section_id,
                 'section_name' => $student->section_name,
-                'detail' => "LRN {$student->lrn} · {$student->grade_level} · {$student->section_name}",
             ]);
-    }
-
-    public function studentSections(): Collection
-    {
-        return $this->schoolConnection()->table('sections')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-    }
-
-    public function subjectTeachers(): Collection
-    {
-        return $this->schoolConnection()->table('teachers')
-            ->orderBy('name')
-            ->get(['id', 'name']);
     }
 
     public function teachers(): Collection
     {
-        $subjectsByTeacher = $this->schoolConnection()->table('subjects')
-            ->orderBy('subject_name')
-            ->get(['id', 'teacher_id', 'subject_name', 'subject_code'])
-            ->groupBy('teacher_id');
-
         return $this->schoolConnection()->table('teachers')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(function ($teacher) use ($subjectsByTeacher) {
-                $subjects = $subjectsByTeacher->get($teacher->id, collect())
-                    ->map(fn ($subject) => [
-                        'id' => (int) $subject->id,
-                        'name' => (string) $subject->subject_name,
-                        'code' => (string) $subject->subject_code,
-                    ])
-                    ->values();
-                $subjectCount = $subjects->count();
-
-                return [
-                    'id' => $teacher->id,
-                    'name' => $teacher->name,
-                    'detail' => $subjectCount === 1 ? '1 subject assigned' : "{$subjectCount} subjects assigned",
-                    'subjects' => $subjects,
-                ];
-            });
+            ->leftJoin('subjects', 'subjects.teacher_id', '=', 'teachers.id')
+            ->select('teachers.id', 'teachers.name')
+            ->selectRaw('COUNT(subjects.id) as subject_count')
+            ->groupBy('teachers.id', 'teachers.name')
+            ->orderBy('teachers.name')
+            ->get()
+            ->map(fn ($teacher) => [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+                'detail' => $teacher->subject_count === 1
+                    ? '1 subject assigned'
+                    : "{$teacher->subject_count} subjects assigned",
+                'subject_count' => (int) $teacher->subject_count,
+            ]);
     }
 
     public function subjects(): Collection
@@ -90,44 +66,70 @@ class SchoolRecordsService
             ->map(fn ($subject) => [
                 'id' => $subject->id,
                 'name' => $subject->subject_name,
+                'detail' => "{$subject->subject_code} · ".($subject->teacher_name ?? 'No teacher assigned'),
                 'code' => $subject->subject_code,
                 'teacher_id' => $subject->teacher_id,
                 'teacher_name' => $subject->teacher_name,
-                'detail' => "{$subject->subject_code} · ".($subject->teacher_name ?? 'No teacher assigned'),
             ]);
     }
 
     public function sections(): Collection
     {
-        $studentsBySection = $this->schoolConnection()->table('students')
-            ->orderBy('name')
-            ->get(['id', 'name', 'lrn', 'grade_level', 'section_id'])
-            ->groupBy('section_id')
-            ->map(fn (Collection $students) => $students->map(fn ($student) => [
-                'id' => (int) $student->id,
-                'name' => (string) $student->name,
-                'lrn' => (string) $student->lrn,
-                'grade_level' => (string) $student->grade_level,
-            ])->values());
-
         return $this->schoolConnection()->table('sections')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(function ($section) use ($studentsBySection) {
-                $students = $studentsBySection->get($section->id, collect());
+            ->leftJoin('students', 'students.section_id', '=', 'sections.id')
+            ->orderBy('sections.name')
+            ->orderBy('students.name')
+            ->get([
+                'sections.id as section_id',
+                'sections.name as section_name',
+                'students.id as student_id',
+                'students.name as student_name',
+                'students.lrn',
+                'students.grade_level',
+            ])
+            ->groupBy('section_id')
+            ->map(function (Collection $rows) {
+                $section = $rows->first();
+                $students = $rows
+                    ->filter(fn ($row) => $row->student_id !== null)
+                    ->map(fn ($row) => [
+                        'id' => (int) $row->student_id,
+                        'name' => (string) $row->student_name,
+                        'lrn' => (string) $row->lrn,
+                        'grade_level' => (string) $row->grade_level,
+                    ])
+                    ->values();
                 $studentCount = $students->count();
 
                 return [
-                    'id' => $section->id,
-                    'name' => $section->name,
-                    'detail' => $studentCount === 1 ? '1 student enrolled' : "{$studentCount} students enrolled",
+                    'id' => $section->section_id,
+                    'name' => $section->section_name,
+                    'detail' => $studentCount === 1
+                        ? '1 student enrolled'
+                        : "{$studentCount} students enrolled",
+                    'student_count' => $studentCount,
                     'students' => $students,
                 ];
-            });
+            })
+            ->values();
+    }
+
+    public function sectionOptions(): Collection
+    {
+        return $this->schoolConnection()->table('sections')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    public function teacherOptions(): Collection
+    {
+        return $this->schoolConnection()->table('teachers')
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     private function schoolConnection(): Connection
     {
-        return Student::query()->getConnection();
+        return DB::connection(config('database.school_connection'));
     }
 }

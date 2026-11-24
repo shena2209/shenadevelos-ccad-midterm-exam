@@ -137,4 +137,9 @@ class SchoolService
     {
         return trim(strip_tags($value));
     }
+
+    private function schoolConnection(): \Illuminate\Database\Connection
+    {
+        return DB::connection(config('database.school_connection'));
+    }
 }

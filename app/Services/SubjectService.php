@@ -6,8 +6,6 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class SubjectService
 {
@@ -23,33 +21,16 @@ class SubjectService
 
     public function create(array $data): Subject
     {
-        $data = $this->sanitize($data);
-        $data = $this->validate($data, [
-            'subject_code' => ['required', 'string', 'max:20', Rule::unique($this->schoolTable('subjects'), 'subject_code')],
-            'subject_name' => ['required', 'string', 'max:255'],
-            'teacher_id' => ['nullable', 'integer', Rule::exists($this->schoolTable('teachers'), 'id')],
-        ]);
-
-        return DB::transaction(fn () => Subject::create($data));
+        return $this->schoolConnection()->transaction(
+            fn () => Subject::create($this->sanitize($data))
+        );
     }
 
     public function update(int $id, array $data): Subject
     {
-        $data = $this->sanitize($data);
-        $data = $this->validate($data, [
-            'subject_code' => [
-                'required',
-                'string',
-                'max:20',
-                Rule::unique($this->schoolTable('subjects'), 'subject_code')->ignore($id),
-            ],
-            'subject_name' => ['required', 'string', 'max:255'],
-            'teacher_id' => ['nullable', 'integer', Rule::exists($this->schoolTable('teachers'), 'id')],
-        ]);
-
-        return DB::transaction(function () use ($id, $data) {
+        return $this->schoolConnection()->transaction(function () use ($id, $data) {
             $subject = Subject::findOrFail($id);
-            $subject->update($data);
+            $subject->update($this->sanitize($data));
 
             return $subject->load('teacher');
         });
@@ -60,23 +41,17 @@ class SubjectService
         return [
             'subject_code' => $this->sanitizeString($data['subject_code'] ?? $data['code'] ?? ''),
             'subject_name' => $this->sanitizeString($data['subject_name'] ?? $data['name'] ?? ''),
-            'teacher_id' => ($data['teacher_id'] ?? null) === '' ? null : ($data['teacher_id'] ?? null),
+            'teacher_id' => $data['teacher_id'] ?? null,
         ];
     }
 
-    private function sanitizeString(mixed $value): mixed
+    private function sanitizeString(string $value): string
     {
-        return is_string($value) ? trim(strip_tags($value)) : $value;
+        return trim(strip_tags($value));
     }
 
-    private function validate(array $data, array $rules): array
+    private function schoolConnection(): \Illuminate\Database\Connection
     {
-        return Validator::make($data, $rules)->validate();
+        return DB::connection(config('database.school_connection'));
     }
-
-    private function schoolTable(string $table): string
-    {
-        return config('database.school_connection').'.'.$table;
-    }
-
 }

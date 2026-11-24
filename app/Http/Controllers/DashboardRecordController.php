@@ -26,20 +26,6 @@ class DashboardRecordController extends Controller
         return to_route('dashboard');
     }
 
-    public function updateStudent(Request $request, int $student): RedirectResponse
-    {
-        $this->dashboardRecordService->updateStudent($student, $request->all());
-
-        return to_route('school-records.students');
-    }
-
-    public function destroyStudent(int $student): RedirectResponse
-    {
-        $this->dashboardRecordService->deleteStudent($student);
-
-        return to_route('school-records.students');
-    }
-
     public function storeTeacher(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -73,6 +59,84 @@ class DashboardRecordController extends Controller
         $this->dashboardRecordService->createSection($data);
 
         return to_route('dashboard');
+    }
+
+    public function updateStudent(Request $request, int $student): RedirectResponse
+    {
+        $gradeLevels = array_map(fn (int $level) => "Grade {$level}", range(1, 12));
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'lrn' => ['required', 'digits:12', Rule::unique('school.students', 'lrn')->ignore($student)],
+            'grade_level' => ['required', Rule::in($gradeLevels)],
+            'section_id' => ['required', Rule::exists('school.sections', 'id')],
+        ]);
+
+        $this->dashboardRecordService->updateStudent($student, $data);
+
+        return back();
+    }
+
+    public function updateTeacher(Request $request, int $teacher): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+        ]);
+
+        $this->dashboardRecordService->updateTeacher($teacher, $data);
+
+        return back();
+    }
+
+    public function updateSubject(Request $request, int $subject): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'code' => ['required', 'string', 'max:20', Rule::unique('school.subjects', 'subject_code')->ignore($subject)],
+            'teacher_id' => ['nullable', Rule::exists('school.teachers', 'id')],
+        ]);
+
+        $this->dashboardRecordService->updateSubject($subject, $data);
+
+        return back();
+    }
+
+    public function updateSection(Request $request, int $section): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('school.sections', 'name')->ignore($section)],
+        ]);
+
+        $this->dashboardRecordService->updateSection($section, $data);
+
+        return back();
+    }
+
+    public function destroyStudent(int $student): RedirectResponse
+    {
+        $this->dashboardRecordService->deleteStudent($student);
+
+        return back();
+    }
+
+    public function destroyTeacher(int $teacher): RedirectResponse
+    {
+        $this->dashboardRecordService->deleteTeacher($teacher);
+
+        return back();
+    }
+
+    public function destroySubject(int $subject): RedirectResponse
+    {
+        $this->dashboardRecordService->deleteSubject($subject);
+
+        return back();
+    }
+
+    public function destroySection(int $section): RedirectResponse
+    {
+        $this->dashboardRecordService->deleteSection($section);
+
+        return back();
     }
 
     public function storeGrade(Request $request): RedirectResponse

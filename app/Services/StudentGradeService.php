@@ -8,9 +8,7 @@ use App\Models\StudentGrade;
 use App\Models\Subject;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
-use Illuminate\Validation\Rule;
 
 class StudentGradeService
 {
@@ -32,9 +30,7 @@ class StudentGradeService
 
     public function create(array $data): StudentGrade
     {
-        $data = $this->validate($this->sanitize($data));
-
-        return DB::transaction(function () use ($data) {
+        return $this->schoolConnection()->transaction(function () use ($data) {
             $student = $this->resolveStudent($data);
             $grade = $student->grades()->create([
                 'subject_id' => $data['subject_id'],
@@ -47,9 +43,7 @@ class StudentGradeService
 
     public function update(int $id, array $data): StudentGrade
     {
-        $data = $this->validate($this->sanitize($data), $id);
-
-        return DB::transaction(function () use ($id, $data) {
+        return $this->schoolConnection()->transaction(function () use ($id, $data) {
             $studentGrade = StudentGrade::findOrFail($id);
             $student = $this->resolveStudent($data, $studentGrade->student_id);
             $gradeData = [];
@@ -117,61 +111,8 @@ class StudentGradeService
         return trim(strip_tags($value));
     }
 
-    private function sanitize(array $data): array
+    private function schoolConnection(): \Illuminate\Database\Connection
     {
-        foreach (['student_id', 'subject_id', 'section_id'] as $field) {
-            if (isset($data[$field]) && is_string($data[$field])) {
-                $data[$field] = trim($data[$field]);
-            }
-        }
-
-        foreach (['student_lrn', 'student_name', 'grade_level'] as $field) {
-            if (isset($data[$field])) {
-                $data[$field] = is_string($data[$field])
-                    ? $this->sanitizeString($data[$field])
-                    : $data[$field];
-            }
-        }
-
-        foreach (['prelim_grade', 'midterm_grade', 'final_grade'] as $field) {
-            if (isset($data[$field]) && is_string($data[$field])) {
-                $data[$field] = trim($data[$field]);
-            }
-        }
-
-        return $data;
+        return DB::connection(config('database.school_connection'));
     }
-
-    private function validate(array $data, ?int $ignoreGradeId = null): array
-    {
-        $studentRule = Rule::unique($this->schoolTable('student_grades'), 'student_id')
-            ->where(fn ($query) => $query->where('subject_id', $data['subject_id'] ?? null));
-
-        if ($ignoreGradeId !== null) {
-            $studentRule->ignore($ignoreGradeId);
-        }
-
-        return Validator::make($data, [
-            'student_id' => [
-                'nullable',
-                'integer',
-                Rule::exists($this->schoolTable('students'), 'id'),
-                $studentRule,
-            ],
-            'student_lrn' => ['nullable', 'digits:12', 'required_without:student_id'],
-            'student_name' => ['nullable', 'string', 'max:150'],
-            'grade_level' => ['nullable', 'string', 'max:20'],
-            'section_id' => ['nullable', 'integer', Rule::exists($this->schoolTable('sections'), 'id')],
-            'subject_id' => ['required', 'integer', Rule::exists($this->schoolTable('subjects'), 'id')],
-            'prelim_grade' => ['nullable', 'numeric', 'between:0,100'],
-            'midterm_grade' => ['nullable', 'numeric', 'between:0,100'],
-            'final_grade' => ['nullable', 'numeric', 'between:0,100'],
-        ])->validate();
-    }
-
-    private function schoolTable(string $table): string
-    {
-        return config('database.school_connection').'.'.$table;
-    }
-
 }
