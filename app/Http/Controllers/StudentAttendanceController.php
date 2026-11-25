@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreStudentAttendanceRequest;
+use App\Http\Requests\StudentAttendanceIndexRequest;
 use App\Services\StudentAttendanceService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,11 +13,9 @@ class StudentAttendanceController extends Controller
 {
     public function __construct(private readonly StudentAttendanceService $studentAttendanceService) {}
 
-    public function index(Request $request): Response
+    public function index(StudentAttendanceIndexRequest $request): Response
     {
-        $date = $request->validate([
-            'date' => ['nullable', 'date_format:Y-m-d'],
-        ])['date'] ?? now()->toDateString();
+        $date = $request->validated('date') ?? now()->toDateString();
 
         $attendance = $this->studentAttendanceService->dailyAttendance($date);
 

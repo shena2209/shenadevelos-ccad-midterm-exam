@@ -2,111 +2,82 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDashboardGradeRequest;
+use App\Http\Requests\StoreDashboardSectionRequest;
+use App\Http\Requests\StoreDashboardStudentRequest;
+use App\Http\Requests\StoreDashboardSubjectRequest;
+use App\Http\Requests\StoreDashboardTeacherRequest;
+use App\Http\Requests\UpdateDashboardGradeRequest;
+use App\Http\Requests\UpdateDashboardSectionRequest;
+use App\Http\Requests\UpdateDashboardStudentRequest;
+use App\Http\Requests\UpdateDashboardSubjectRequest;
+use App\Http\Requests\UpdateDashboardTeacherRequest;
 use App\Services\DashboardRecordService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DashboardRecordController extends Controller
 {
     public function __construct(private readonly DashboardRecordService $dashboardRecordService) {}
 
-    public function storeStudent(Request $request): RedirectResponse
+    public function index(): Response
     {
-        $gradeLevels = array_map(fn (int $level) => "Grade {$level}", range(1, 12));
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'lrn' => ['required', 'digits:12', Rule::unique('school.students', 'lrn')], // this must be done in request
-            'grade_level' => ['required', Rule::in($gradeLevels)],
-            'section_id' => ['required', Rule::exists('school.sections', 'id')],
-        ]);
+        return Inertia::render('dashboard', $this->dashboardRecordService->dashboardData());
+    }
 
-        $this->dashboardRecordService->createStudent($data);
+    public function storeStudent(StoreDashboardStudentRequest $request): RedirectResponse
+    {
+        $this->dashboardRecordService->createStudent($request->validated());
 
         return to_route('dashboard');
     }
 
-    public function storeTeacher(Request $request): RedirectResponse
+    public function storeTeacher(StoreDashboardTeacherRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-        ]);
-
-        $this->dashboardRecordService->createTeacher($data);
+        $this->dashboardRecordService->createTeacher($request->validated());
 
         return to_route('dashboard');
     }
 
-    public function storeSubject(Request $request): RedirectResponse
+    public function storeSubject(StoreDashboardSubjectRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'code' => ['required', 'string', 'max:20', Rule::unique('school.subjects', 'subject_code')], // this must be done in request
-            'teacher_id' => ['nullable', Rule::exists('school.teachers', 'id')],
-        ]);
-
-        $this->dashboardRecordService->createSubject($data);
+        $this->dashboardRecordService->createSubject($request->validated());
 
         return to_route('dashboard');
     }
 
-    public function storeSection(Request $request): RedirectResponse
+    public function storeSection(StoreDashboardSectionRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('school.sections', 'name')], // this must be done in request
-        ]);
-
-        $this->dashboardRecordService->createSection($data);
+        $this->dashboardRecordService->createSection($request->validated());
 
         return to_route('dashboard');
     }
 
-    public function updateStudent(Request $request, int $student): RedirectResponse
+    public function updateStudent(UpdateDashboardStudentRequest $request, int $student): RedirectResponse
     {
-        $gradeLevels = array_map(fn (int $level) => "Grade {$level}", range(1, 12));
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'lrn' => ['required', 'digits:12', Rule::unique('school.students', 'lrn')->ignore($student)],
-            'grade_level' => ['required', Rule::in($gradeLevels)],
-            'section_id' => ['required', Rule::exists('school.sections', 'id')],
-        ]);
-
-        $this->dashboardRecordService->updateStudent($student, $data);
+        $this->dashboardRecordService->updateStudent($student, $request->validated());
 
         return back();
     }
 
-    public function updateTeacher(Request $request, int $teacher): RedirectResponse
+    public function updateTeacher(UpdateDashboardTeacherRequest $request, int $teacher): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-        ]);
-
-        $this->dashboardRecordService->updateTeacher($teacher, $data);
+        $this->dashboardRecordService->updateTeacher($teacher, $request->validated());
 
         return back();
     }
 
-    public function updateSubject(Request $request, int $subject): RedirectResponse
+    public function updateSubject(UpdateDashboardSubjectRequest $request, int $subject): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'code' => ['required', 'string', 'max:20', Rule::unique('school.subjects', 'subject_code')->ignore($subject)],
-            'teacher_id' => ['nullable', Rule::exists('school.teachers', 'id')],
-        ]);
-
-        $this->dashboardRecordService->updateSubject($subject, $data);
+        $this->dashboardRecordService->updateSubject($subject, $request->validated());
 
         return back();
     }
 
-    public function updateSection(Request $request, int $section): RedirectResponse
+    public function updateSection(UpdateDashboardSectionRequest $request, int $section): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('school.sections', 'name')->ignore($section)],
-        ]);
-
-        $this->dashboardRecordService->updateSection($section, $data);
+        $this->dashboardRecordService->updateSection($section, $request->validated());
 
         return back();
     }
@@ -139,47 +110,16 @@ class DashboardRecordController extends Controller
         return back();
     }
 
-    public function storeGrade(Request $request): RedirectResponse
+    public function storeGrade(StoreDashboardGradeRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'student_id' => [
-                'required',
-                Rule::exists('school.students', 'id'),
-                Rule::unique('school.student_grades', 'student_id')
-                    ->where('subject_id', $request->input('subject_id')),
-            ],
-            'subject_id' => ['required', Rule::exists('school.subjects', 'id')],
-            'prelim_grade' => ['nullable', 'numeric', 'between:0,100'], // this must be done in request
-            'midterm_grade' => ['nullable', 'numeric', 'between:0,100'],
-            'final_grade' => ['nullable', 'numeric', 'between:0,100'],
-        ], [
-            'student_id.unique' => 'A grade record already exists for this student and subject.',
-        ]);
-
-        $this->dashboardRecordService->createGrade($data);
+        $this->dashboardRecordService->createGrade($request->validated());
 
         return to_route('dashboard');
     }
 
-    public function updateGrade(Request $request, int $grade): RedirectResponse
+    public function updateGrade(UpdateDashboardGradeRequest $request, int $grade): RedirectResponse
     {
-        $data = $request->validate([
-            'student_id' => [
-                'required',
-                Rule::exists('school.students', 'id'),
-                Rule::unique('school.student_grades', 'student_id')
-                    ->where('subject_id', $request->input('subject_id'))
-                    ->ignore($grade),
-            ],
-            'subject_id' => ['required', Rule::exists('school.subjects', 'id')],
-            'prelim_grade' => ['sometimes', 'nullable', 'numeric', 'between:0,100'], // this must be done in request
-            'midterm_grade' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
-            'final_grade' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
-        ], [
-            'student_id.unique' => 'A grade record already exists for this student and subject.',
-        ]);
-
-        $this->dashboardRecordService->updateGrade($grade, $data);
+        $this->dashboardRecordService->updateGrade($grade, $request->validated());
 
         return to_route('dashboard');
     }

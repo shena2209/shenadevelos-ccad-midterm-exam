@@ -25,7 +25,7 @@ class SubjectController extends Controller
     {
         $subject = $this->subjectService->create($request->validated());
 
-        return response()->json($subject->load('teacher'), 201);
+        return response()->json($subject, 201);
     }
 
     public function update(UpdateSubjectRequest $request, string $id): JsonResponse

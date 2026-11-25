@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Subject;
 use App\Models\Teacher;
+use Illuminate\Database\Connection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +24,7 @@ class SubjectService
     {
         return $this->schoolConnection()->transaction(
             fn () => Subject::create($this->sanitize($data))
-        );
+        )->load('teacher');
     }
 
     public function update(int $id, array $data): Subject
@@ -50,7 +51,7 @@ class SubjectService
         return trim(strip_tags($value));
     }
 
-    private function schoolConnection(): \Illuminate\Database\Connection
+    private function schoolConnection(): Connection
     {
         return DB::connection(config('database.school_connection'));
     }

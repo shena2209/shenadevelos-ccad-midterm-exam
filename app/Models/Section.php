@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Section extends Model
 {
+    protected $connection = 'school';
+
     protected $fillable = ['name'];
 
     public function students(): HasMany

@@ -24,10 +24,12 @@ class StoreSubjectRequest extends FormRequest
 
     public function rules(): array
     {
+        $schoolConnection = config('database.school_connection');
+
         return [
-            'subject_code' => ['required', 'string', 'max:20', 'unique:subjects,subject_code'],
-            'subject_name' => ['required', 'string', 'max:255'],
-            'teacher_id' => ['nullable', 'exists:teachers,id'],
+            'subject_code' => ['required', 'string', 'max:20', Rule::unique("{$schoolConnection}.subjects", 'subject_code')],
+            'subject_name' => ['required', 'string', 'max:150'],
+            'teacher_id' => ['nullable', Rule::exists("{$schoolConnection}.teachers", 'id')],
         ];
     }
 
@@ -38,7 +40,7 @@ class StoreSubjectRequest extends FormRequest
             'subject_code.unique' => 'This subject code already exists.',
             'subject_code.max' => 'The subject code may not exceed 20 characters.',
             'subject_name.required' => 'The subject name is required.',
-            'subject_name.max' => 'The subject name may not exceed 255 characters.',
+            'subject_name.max' => 'The subject name may not exceed 150 characters.',
             'teacher_id.exists' => 'The selected teacher does not exist.',
         ];
     }

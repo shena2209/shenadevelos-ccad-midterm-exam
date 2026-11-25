@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StudentGrade extends Model
 {
+    protected $connection = 'school';
+
     protected $fillable = [
         'student_id',
         'subject_id',
